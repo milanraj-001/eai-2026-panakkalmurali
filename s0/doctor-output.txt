@@ -1,0 +1,12 @@
+EAI 2026 - Session 0 doctor
+===========================
+
+[1/7] Docker daemon reachable         PASS
+[2/7] Compose v2 present              PASS
+[3/7] Both containers running         PASS
+[4/7] Both containers healthy         PASS
+[5/7] Ports 8080 and 5432 bound       PASS
+[6/7] Seed row readable from Postgres PASS
+[7/7] Free disk space above 5 GB      PASS
+
+DOCTOR: PASS
