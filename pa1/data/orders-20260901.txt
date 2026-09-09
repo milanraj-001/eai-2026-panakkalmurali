@@ -1,0 +1,10 @@
+ORD-0001  C0000001  Jânis Bçrziòð                   01.09.20261234,56     EUR
+ORD-0002  C0000002  Anna Ðmite                      01.09.202689,00       EUR
+ORD-0003  C0000003  Roberts Zvirbulis               02.09.20264500,00     EUR
+ORD-0004  C0000004  Lîga Ozoliòa                    02.09.2026-250,00     EUR
+ORD-0005  C0000005  Kârlis Krûmiòð                  03.09.202612,50       EUR
+ORD-0006  C0000006  Ilze V
+ORD-0007  C0000006  Ilze Vîtola                     03.09.2026999,99      EUR
+ORD-0008  C0000007  Pçteris Ozols                   04.09.202645,20       EUR
+ORD-0009  C0000008  Marta Liepiòa                   04.09.20267800,00     EUR
+ORD-0010  C0000001  Jânis Bçrziòð                   05.09.202615,00       EUR

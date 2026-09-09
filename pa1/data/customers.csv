@@ -1,0 +1,10 @@
+customerId;fullName;email;city
+C0000001;Jānis Bērziņš;janis.berzins@example.lv;Rīga
+C0000002;Anna Šmite;anna.smite@example.lv;Liepāja
+C0000003;Roberts Zvirbulis;roberts.zvirbulis@example.lv;Daugavpils
+C0000004;Līga Ozoliņa;liga.ozolina@example.lv;Jelgava
+C0000005;Kārlis Krūmiņš;karlis.krumins@example.lv;Ventspils
+C0000006;Ilze Vītola;ilze.vitola@example.lv;Rēzekne
+C0000007;Pēteris Ozols;peteris.ozols@example.lv;Valmiera
+C0000008;Marta Liepiņa;marta.liepina@example.lv;Cēsis
+C0000009;Edgars Auziņš;edgars.auzins@example.lv;Tukums
