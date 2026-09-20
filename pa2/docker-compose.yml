@@ -1,0 +1,89 @@
+# PA2 stack: RabbitMQ + a producer (HTTP -> queue) + a consumer (queue ->
+# data/received.jsonl).
+#
+# Ports are PA2's own range so this stack can run alongside PA1/PA3/PA4's
+# stacks without tearing any of them down — see the repo-wide port
+# convention in ../README.md. Every container name is prefixed `pa2-` for
+# the same reason.
+#
+#   RabbitMQ AMQP          host 5673  -> container 5672
+#   RabbitMQ management UI host 15673 -> container 15672
+#   Producer HTTP          host 3001  -> container 3000
+#
+# `docker compose up -d --wait` succeeds even against the unfilled starter:
+# the producer's /health and the consumer both stay up regardless of whether
+# the RabbitMQ TODOs are implemented (see src/producer.ts and
+# src/consumer.ts). The assignment is graded to fail at `npm test`, with a
+# readable message, not at `docker compose up --wait`, with a timeout.
+name: pa2
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: pa2-rabbitmq
+    hostname: pa2-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    environment:
+      # A named user, not "guest". Guest logins are restricted to loopback
+      # connections by default, and from the container's point of view a
+      # request forwarded through Docker's port mapping from the host does
+      # not look like loopback — the management API would refuse it. A
+      # named user has no such restriction. See docs/adr-001.md.
+      RABBITMQ_DEFAULT_USER: eai
+      RABBITMQ_DEFAULT_PASS: eai-pa2
+    volumes:
+      - pa2_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  producer:
+    build: ./starter
+    container_name: pa2-producer
+    command: ["npx", "tsx", "src/producer.ts"]
+    environment:
+      RABBITMQ_URL: "amqp://eai:eai-pa2@pa2-rabbitmq:5672"
+      QUEUE_NAME: pa2.orders
+      PORT: "3000"
+    ports:
+      - "3001:3000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)throw 0}).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  consumer:
+    build: ./starter
+    container_name: pa2-consumer
+    command: ["npx", "tsx", "src/consumer.ts"]
+    environment:
+      RABBITMQ_URL: "amqp://eai:eai-pa2@pa2-rabbitmq:5672"
+      QUEUE_NAME: pa2.orders
+      OUTPUT_PATH: /data/received.jsonl
+    volumes:
+      - ./data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pa2_rabbitmq_data:

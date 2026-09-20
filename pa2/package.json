@@ -1,0 +1,11 @@
+{
+  "name": "eai-2026-pa2-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Thin wrapper so `cd pa2 && docker compose up -d --wait && npm test` works from this folder. Your implementation lives in starter/ — this file is not something you edit.",
+  "scripts": {
+    "test": "npm --prefix starter test",
+    "typecheck": "npm --prefix starter run typecheck",
+    "start": "npm --prefix starter start"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "eai-2026-pa2",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA2 - RabbitMQ publish and consume: durable queue, publisher confirms, manual ack, correlationId propagation.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start:producer": "tsx src/producer.ts",
+    "start:consumer": "tsx src/consumer.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
