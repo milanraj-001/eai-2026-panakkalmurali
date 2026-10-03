@@ -1,0 +1,76 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: pa3-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-api:
+    build: ./starter/order-api
+    container_name: pa3-order-api
+    ports:
+      - "8083:8080"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  router-service:
+    build: ./starter/router-service
+    container_name: pa3-router
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  inventory-worker:
+    build: ./starter/inventory-worker
+    container_name: pa3-inventory-worker
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  digital-worker:
+    build: ./starter/digital-worker
+    container_name: pa3-digital-worker
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  subscription-worker:
+    build: ./starter/subscription-worker
+    container_name: pa3-subscription-worker
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  aggregator-service:
+    build: ./starter/aggregator-service
+    container_name: pa3-aggregator
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      AGGREGATOR_IDLE_TIMEOUT_SECONDS: "5"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+networks:
+  default:
+    name: pa3-routing

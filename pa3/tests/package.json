@@ -1,0 +1,21 @@
+{
+  "name": "eai-2026-pa3-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA3 public black-box tests: HTTP against order-api, AMQP + the RabbitMQ management API against the broker.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/node": "^22.10.2",
+    "amqplib": "^0.10.4",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

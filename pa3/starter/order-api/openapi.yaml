@@ -1,0 +1,233 @@
+openapi: 3.0.3
+info:
+  title: PA3 Routing Assignment - Order API
+  description: |
+    REST API for submitting orders to the PA3 routing assignment's message flow.
+
+    This API receives multi-item orders and publishes them to RabbitMQ for processing
+    through the Splitter, Content-Based Router, and Aggregator patterns.
+  version: 1.0.0
+  contact:
+    name: EAI Course
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8083
+    description: Local Docker Compose environment
+
+tags:
+  - name: Orders
+    description: Order submission endpoints
+  - name: Health
+    description: Service health endpoints
+
+paths:
+  /orders:
+    post:
+      tags:
+        - Orders
+      summary: Submit a new order
+      description: |
+        Accepts an order with multiple items and publishes it to the `orders.incoming` queue.
+        
+        The order will be processed through:
+        1. **Router Service** - Splits order into items and routes by type
+        2. **Inventory Worker** - Processes physical items
+        3. **Digital Worker** - Processes digital items
+        4. **Subscription Worker** - Processes subscription items
+        5. **Aggregator Service** - Collects results and produces final status
+           (complete, or partial with a timeout if a worker never answers)
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+            examples:
+              mixedOrder:
+                summary: Order with physical and digital items
+                value:
+                  customerId: "cust-123"
+                  items:
+                    - type: "physical"
+                      name: "Laptop"
+                      price: 999.99
+                    - type: "digital"
+                      name: "Software License"
+                      price: 49.99
+                    - type: "physical"
+                      name: "Mouse"
+                      price: 29.99
+              physicalOnly:
+                summary: Order with only physical items
+                value:
+                  customerId: "cust-456"
+                  items:
+                    - type: "physical"
+                      name: "Keyboard"
+                      price: 79.99
+              digitalOnly:
+                summary: Order with only digital items
+                value:
+                  customerId: "cust-789"
+                  items:
+                    - type: "digital"
+                      name: "E-Book"
+                      price: 19.99
+                    - type: "digital"
+                      name: "Online Course"
+                      price: 149.99
+              withSubscription:
+                summary: Order including a subscription item
+                value:
+                  customerId: "cust-321"
+                  items:
+                    - type: "physical"
+                      name: "Router"
+                      price: 129.99
+                    - type: "digital"
+                      name: "Firmware License"
+                      price: 9.99
+                    - type: "subscription"
+                      name: "Support Plan - Monthly"
+                      price: 14.99
+      responses:
+        '202':
+          description: Order accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              example:
+                orderId: "550e8400-e29b-41d4-a716-446655440000"
+                status: "received"
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Invalid JSON"
+                message: "Request body must be valid JSON"
+        '500':
+          description: Internal server error (e.g., RabbitMQ connection failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal Server Error"
+                message: "Failed to connect to message broker"
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns the health status of the Order API service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "healthy"
+
+components:
+  schemas:
+    OrderRequest:
+      type: object
+      required:
+        - customerId
+        - items
+      properties:
+        customerId:
+          type: string
+          description: Unique identifier for the customer
+          example: "cust-123"
+        items:
+          type: array
+          description: List of items in the order
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItem'
+      example:
+        customerId: "cust-123"
+        items:
+          - type: "physical"
+            name: "Laptop"
+            price: 999.99
+
+    OrderItem:
+      type: object
+      required:
+        - type
+        - name
+        - price
+      properties:
+        type:
+          type: string
+          description: |
+            Item type determines routing:
+            - `physical` → Inventory Worker
+            - `digital` → Digital Worker
+            - `subscription` → Subscription Worker
+          enum:
+            - physical
+            - digital
+            - subscription
+          example: "physical"
+        name:
+          type: string
+          description: Name of the item
+          example: "Laptop"
+        price:
+          type: number
+          format: float
+          description: Price of the item
+          minimum: 0
+          example: 999.99
+
+    OrderResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: Unique identifier assigned to the order (also used as correlationId)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          description: Current status of the order
+          enum:
+            - received
+          example: "received"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Health status of the service
+          enum:
+            - healthy
+            - unhealthy
+          example: "healthy"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: "Bad Request"
+        message:
+          type: string
+          description: Detailed error message
+          example: "Invalid JSON in request body"

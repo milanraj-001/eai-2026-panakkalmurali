@@ -1,0 +1,6 @@
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# Node dependencies for the test runner
+tests/node_modules/
