@@ -1,0 +1,27 @@
+{
+  "name": "eai-2026-pa4",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA4 - three sources to one canonical order model, enriched from a pricing API, with payment details filtered out.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/transform.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "oid": "MOB-2026-050",
+  "ot": "express",
+  "cust_name": "Anna Bērziņa",
+  "cust_email": "anna.berzina@example.com",
+  "addr": "Brīvības iela 100, Rīga, LV-1001, LV",
+  "items": [
+    { "pid": "001", "pname": "Wireless Mouse", "qty": 2 },
+    { "pid": "002", "pname": "USB-C Hub", "qty": 1 }
+  ],
+  "ts": 1788258600,
+  "st": 1,
+  "cur": 978,
+  "pm": "card",
+  "pan": "4111111111111111",
+  "pexp": "1227"
+}

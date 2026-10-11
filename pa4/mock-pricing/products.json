@@ -1,0 +1,15 @@
+[
+  { "productId": "PROD-001", "productName": "Wireless Mouse", "unitPrice": 22.50, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-002", "productName": "USB-C Hub", "unitPrice": 45.30, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-003", "productName": "Mechanical Keyboard", "unitPrice": 78.40, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-004", "productName": "Monitor Stand", "unitPrice": 31.75, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-005", "productName": "Webcam HD", "unitPrice": 54.60, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-006", "productName": "Desk Lamp", "unitPrice": 27.15, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-007", "productName": "USB Cable Pack", "unitPrice": 11.20, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-008", "productName": "Laptop Sleeve", "unitPrice": 18.90, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-009", "productName": "Mouse Pad XL", "unitPrice": 14.35, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-010", "productName": "Headphone Stand", "unitPrice": 21.05, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-011", "productName": "Screen Cleaner", "unitPrice": 8.10, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-012", "productName": "Cable Management Kit", "unitPrice": 13.85, "currency": "EUR", "taxRate": 0.21 },
+  { "productId": "PROD-013", "productName": "Cable Tie Pack", "unitPrice": 4.5, "currency": "EUR", "taxRate": 0.21 }
+]

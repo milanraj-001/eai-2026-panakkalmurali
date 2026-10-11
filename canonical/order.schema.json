@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/canonical/order.schema.json",
+  "title": "Canonical Order",
+  "description": "The canonical order model. Owned by the course, not by any assignment. From PA4 onward, every assignment reads or writes exactly this shape — do not add, rename or retype a field, even if your source system makes that convenient. There is deliberately no field for payment/card/IBAN details: a source that carries one gets it stripped during transformation (content filter pattern).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "orderId",
+    "orderType",
+    "source",
+    "receivedAt",
+    "orderDate",
+    "customer",
+    "items",
+    "currency",
+    "status"
+  ],
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The order id as given by the source system. Not renumbered."
+    },
+    "orderType": {
+      "type": "string",
+      "enum": ["standard", "express", "b2b"],
+      "description": "The business order type. One-to-one with source in this course's fixtures, but modelled separately because a future source could carry a different orderType than its channel implies."
+    },
+    "source": {
+      "type": "string",
+      "enum": ["web", "mobile", "b2b"],
+      "description": "Which translator produced this record. Provenance, not a business field."
+    },
+    "receivedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the canonical translator produced this record (its own clock), not the order's own timestamp. Excluded from cross-source structural comparisons for that reason."
+    },
+    "orderDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The order's own timestamp, normalized to ISO-8601 UTC regardless of the source's original representation (string, or Unix epoch seconds)."
+    },
+    "customer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "email", "address"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "format": "email" },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["street", "city", "postalCode", "country"],
+          "properties": {
+            "street": { "type": "string", "minLength": 1 },
+            "city": { "type": "string", "minLength": 1 },
+            "postalCode": { "type": "string", "minLength": 1 },
+            "country": {
+              "type": "string",
+              "description": "ISO 3166-1 alpha-2, e.g. \"LV\", \"GB\"."
+            }
+          }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["productId", "productName", "quantity", "unitPrice", "currency", "taxRate"],
+        "properties": {
+          "productId": {
+            "type": "string",
+            "pattern": "^PROD-[0-9]+$",
+            "description": "Normalized to the pricing API's own format before enrichment. See each translator for its source-specific normalization rule."
+          },
+          "productName": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "unitPrice": {
+            "type": "string",
+            "pattern": "^-?[0-9]+\\.[0-9]{2}$",
+            "description": "A decimal STRING with exactly two fraction digits, e.g. \"24.99\". NEVER a JSON number — a float silently loses trailing zeros and, eventually, cents. Comes from the pricing API's response, not from the source order (which does not carry a trustworthy price)."
+          },
+          "currency": {
+            "type": "string",
+            "description": "The currency the unitPrice is denominated in, as returned by the pricing API. May differ from the order-level currency below."
+          },
+          "taxRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Fraction, e.g. 0.21 for 21%. Not a monetary amount, so a number is fine here."
+          }
+        }
+      }
+    },
+    "currency": {
+      "type": "string",
+      "description": "The order-level currency, as declared by the source (after mapping, e.g. ISO 4217 numeric -> alpha)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["new", "processing", "shipped", "delivered"]
+    }
+  }
+}

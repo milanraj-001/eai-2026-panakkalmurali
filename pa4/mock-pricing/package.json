@@ -1,0 +1,16 @@
+{
+  "name": "eai-2026-pa4-mock-pricing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA4 - given mock pricing API. Not a TODO: students call this, they do not modify it.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

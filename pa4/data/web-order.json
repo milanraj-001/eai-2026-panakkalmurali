@@ -1,0 +1,36 @@
+{
+  "orderId": "WEB-2026-001",
+  "orderType": "standard",
+  "customer": {
+    "name": "Anna Bērziņa",
+    "email": "anna.berzina@example.com",
+    "address": {
+      "street": "Brīvības iela 100",
+      "city": "Rīga",
+      "postalCode": "LV-1001",
+      "country": "LV"
+    },
+    "payment": {
+      "method": "card",
+      "cardHolder": "Anna Bērziņa",
+      "cardNumber": "4111111111111111",
+      "expiryMonth": 12,
+      "expiryYear": 2027
+    }
+  },
+  "items": [
+    {
+      "productId": "PROD-001",
+      "productName": "Wireless Mouse",
+      "quantity": 2
+    },
+    {
+      "productId": "PROD-002",
+      "productName": "USB-C Hub",
+      "quantity": 1
+    }
+  ],
+  "orderDate": "2026-09-01T10:30:00Z",
+  "status": "new",
+  "currency": "EUR"
+}
