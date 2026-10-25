@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    // shared/rabbit.ts lives one level up from this service and imports
+    // "amqplib" itself. At runtime that resolves fine — this service's
+    // Dockerfile links its node_modules at /node_modules, where Node looks
+    // when resolving from the /shared mount. For a *local* `tsc
+    // --noEmit` (there is no such nesting on disk outside the container),
+    // point the bare specifier at this service's own install instead.
+    "baseUrl": ".",
+    "paths": {
+      "amqplib": ["./node_modules/@types/amqplib/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../shared/**/*.ts"]
+}

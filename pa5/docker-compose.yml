@@ -1,0 +1,119 @@
+# PA5 stack: RabbitMQ (pre-declared fanout + TTL-retry topology, see
+# rabbitmq/definitions.json) + order-service (HTTP producer) + three
+# consumers (payment/inventory/notification). The dead letter channel and
+# the invalid message channel are NOT pre-declared — the services declare
+# them (see README.md, "What to build").
+#
+# Ports are PA5's own range so this stack can run alongside PA1-4/6-8's
+# stacks without tearing any of them down — see the repo-wide port
+# convention in ../README.md. Every container name is prefixed `pa5-` for
+# the same reason.
+#
+#   RabbitMQ AMQP          host 5674  -> container 5672
+#   RabbitMQ management UI host 15674 -> container 15672
+#   Order Service HTTP     host 3002  -> container 3000
+#
+# RabbitMQ uses a named user, not guest/guest — see docs/adr-004.md. Guest
+# logins are loopback-only by default, and management-API calls the test
+# suite makes from the host (through this compose file's port mapping) are
+# not guaranteed to look like loopback traffic to the broker on every
+# platform this course runs on; a named user has no such restriction.
+#
+# `docker compose up -d --wait` succeeds even against the untouched
+# scaffold: order-service, inventory-service and notification-service each
+# stay up (see the comment at the top of their src/server.ts) regardless of
+# whether their TODOs are implemented, and payment-service's provided
+# connect/consume/retry/DLQ scaffolding does the same. The assignment is
+# graded to fail at `npm --prefix tests test`, with a readable message, not
+# at `docker compose up --wait`, with a timeout.
+#
+# shared/ is mounted at the container ROOT (/shared), not under /app: every
+# service's own src/server.ts imports it as "../../shared/rabbit" (two
+# levels up — out of src/, out of the service's own project root, matching
+# this file's on-disk depth from pa5/<service>/src/ to pa5/shared/ exactly).
+# At runtime shared/rabbit.ts resolves "amqplib" through /node_modules, which
+# each service's Dockerfile links to its own installed dependencies — so a
+# clean clone needs no `npm install` inside shared/. shared/package.json only
+# serves editors and type-checking on the host.
+name: pa5
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: pa5-rabbitmq
+    hostname: pa5-rabbitmq
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    # No RABBITMQ_DEFAULT_USER/PASS here: importing a definitions file makes
+    # RabbitMQ skip its normal default-vhost-and-user seeding entirely (it
+    # assumes the definitions file is the authority), so those env vars
+    # would silently do nothing. The "eai" user is declared directly in
+    # rabbitmq/definitions.json's "users"/"permissions" sections instead.
+    volumes:
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build: ./order-service
+    container_name: pa5-order-service
+    ports:
+      - "3002:3000"
+    environment:
+      RABBITMQ_URL: amqp://eai:eai-pa5@pa5-rabbitmq:5672
+      PORT: "3000"
+    volumes:
+      - ./shared:/shared:ro
+      - ./order-service/data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  payment-service:
+    build: ./payment-service
+    container_name: pa5-payment-service
+    environment:
+      RABBITMQ_URL: amqp://eai:eai-pa5@pa5-rabbitmq:5672
+      PAYMENT_FAIL_RATE: "${PAYMENT_FAIL_RATE:-20}"
+      DLQ_EXCHANGE: "${DLQ_EXCHANGE:-orders.dlq.exchange}"
+      MAX_RETRIES: "${MAX_RETRIES:-3}"
+    volumes:
+      - ./shared:/shared:ro
+      - ./payment-service/data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: pa5-inventory-service
+    environment:
+      RABBITMQ_URL: amqp://eai:eai-pa5@pa5-rabbitmq:5672
+      INVENTORY_FAIL_RATE: "${INVENTORY_FAIL_RATE:-10}"
+      DLQ_EXCHANGE: "${DLQ_EXCHANGE:-orders.dlq.exchange}"
+      MAX_RETRIES: "${MAX_RETRIES:-3}"
+    volumes:
+      - ./shared:/shared:ro
+      - ./inventory-service/data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build: ./notification-service
+    container_name: pa5-notification-service
+    environment:
+      RABBITMQ_URL: amqp://eai:eai-pa5@pa5-rabbitmq:5672
+      DLQ_EXCHANGE: "${DLQ_EXCHANGE:-orders.dlq.exchange}"
+      MAX_RETRIES: "${MAX_RETRIES:-3}"
+    volumes:
+      - ./shared:/shared:ro
+      - ./notification-service/data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy

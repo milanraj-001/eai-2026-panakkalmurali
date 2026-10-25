@@ -1,0 +1,23 @@
+{
+  "name": "eai-2026-pa5-payment-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA5 payment-service — the reference consumer. Connection, consume setup, and retry/DLQ logic are given; only the payment-validation TODO is yours.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

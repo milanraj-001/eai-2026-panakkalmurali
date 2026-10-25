@@ -1,0 +1,25 @@
+{
+  "name": "eai-2026-pa5-order-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA5 order-service — HTTP producer. EMPTY: implement POST /orders, GET /orders/:correlationId and GET /health.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

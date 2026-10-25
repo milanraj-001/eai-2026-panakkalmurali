@@ -1,0 +1,264 @@
+{
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "users": [
+    {
+      "name": "eai",
+      "password_hash": "dKMR9RPx1lD0ubP/GyoyIp9t4ziywW9vJe3EPiMapbEn1mqA",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "permissions": [
+    {
+      "user": "eai",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "queues": [
+    {
+      "name": "payments.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "orders.retry.exchange",
+        "x-dead-letter-routing-key": "payments.queue"
+      }
+    },
+    {
+      "name": "inventory.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "orders.retry.exchange",
+        "x-dead-letter-routing-key": "inventory.queue"
+      }
+    },
+    {
+      "name": "notifications.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "orders.retry.exchange",
+        "x-dead-letter-routing-key": "notifications.queue"
+      }
+    },
+    {
+      "name": "payments.retry.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "orders.return.exchange",
+        "x-dead-letter-routing-key": "payments.queue"
+      }
+    },
+    {
+      "name": "inventory.retry.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "orders.return.exchange",
+        "x-dead-letter-routing-key": "inventory.queue"
+      }
+    },
+    {
+      "name": "notifications.retry.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "orders.return.exchange",
+        "x-dead-letter-routing-key": "notifications.queue"
+      }
+    },
+    {
+      "name": "payment.results",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "inventory.results",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notification.results",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "orders.exchange",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.retry.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.return.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "results.payment",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "results.inventory",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "results.notification",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "vhost": "/",
+      "source": "orders.exchange",
+      "destination": "payments.queue",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.exchange",
+      "destination": "inventory.queue",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.exchange",
+      "destination": "notifications.queue",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.retry.exchange",
+      "destination": "payments.retry.queue",
+      "destination_type": "queue",
+      "routing_key": "payments.queue",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.retry.exchange",
+      "destination": "inventory.retry.queue",
+      "destination_type": "queue",
+      "routing_key": "inventory.queue",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.retry.exchange",
+      "destination": "notifications.retry.queue",
+      "destination_type": "queue",
+      "routing_key": "notifications.queue",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.return.exchange",
+      "destination": "payments.queue",
+      "destination_type": "queue",
+      "routing_key": "payments.queue",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.return.exchange",
+      "destination": "inventory.queue",
+      "destination_type": "queue",
+      "routing_key": "inventory.queue",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "orders.return.exchange",
+      "destination": "notifications.queue",
+      "destination_type": "queue",
+      "routing_key": "notifications.queue",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "results.payment",
+      "destination": "payment.results",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "results.inventory",
+      "destination": "inventory.results",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "vhost": "/",
+      "source": "results.notification",
+      "destination": "notification.results",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    }
+  ]
+}
