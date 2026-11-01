@@ -1,0 +1,71 @@
+# DELIBERATELY BROKEN — instructor verification artifact only.
+#
+# This file exists to prove `.spectral.yaml` actually catches problems. It is
+# not a starting point, an example of acceptable style, or something to fix
+# up and submit. It violates, on purpose:
+#
+#   - info-description-required     (no info.description)
+#   - operation-operationId-required / operation-id-camel-case
+#                                    (snake_case operationId)
+#   - path-kebab-case                (/checkOut, camelCase segment)
+#   - operation-description-required / operation-summary-required
+#                                    (no description or summary)
+#   - parameter-description-required (Idempotency-Key has no description)
+#   - request-body-description-required (no description)
+#   - response-description-required  (200 response has no description)
+#   - error-responses-have-schema    (422 has no content/schema at all)
+#   - schema-property-camel-case     (order_id, not orderId)
+#   - no-unbounded-arrays            (items[] has no maxItems)
+#
+# Verify with, from pa6/:
+#   docker compose run --rm spectral lint examples/openapi.bad.yaml --ruleset .spectral.yaml
+# It must exit non-zero.
+openapi: 3.0.3
+info:
+  title: Broken Checkout API
+  version: 1.0.0
+paths:
+  /checkOut:
+    post:
+      operationId: create_checkout
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+        "422":
+          description: Something went wrong.
+components:
+  schemas:
+    CheckoutRequest:
+      type: object
+      properties:
+        order_id:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku:
+                type: string
+    CheckoutResponse:
+      type: object
+      properties:
+        order_id:
+          type: string
+        status:
+          type: string

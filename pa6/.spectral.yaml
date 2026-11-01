@@ -1,0 +1,127 @@
+# PA6 contract-first ruleset.
+#
+# Extends the base OpenAPI ruleset (structural validity: valid $refs, valid
+# response codes, etc.) and layers on the four things this assignment cares
+# about before a single line of implementation exists:
+#
+#   1. naming conventions        (operationId, path segments, property names)
+#   2. required descriptions     (info, operations, params, request bodies)
+#   3. error-response schemas    (4xx/5xx bodies are contractual, not prose)
+#   4. no unbounded arrays       (every array declares maxItems)
+#
+# Run it exactly as graded, from pa6/, in any shell:
+#   docker compose run --rm spectral
+extends:
+  - spectral:oas
+
+rules:
+  # --- naming conventions --------------------------------------------------
+
+  info-description-required:
+    description: The API must have a top-level description explaining its purpose.
+    given: "$.info"
+    severity: error
+    then:
+      field: description
+      function: truthy
+
+  operation-operationId-required:
+    description: Every operation must declare an operationId.
+    given: "$.paths[*][*]"
+    severity: error
+    then:
+      field: operationId
+      function: truthy
+
+  operation-id-camel-case:
+    description: operationId must be camelCase (e.g. createCheckout, not create_checkout or CreateCheckout).
+    given: "$.paths[*][*].operationId"
+    severity: error
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  path-kebab-case:
+    description: Path segments must be kebab-case or a path parameter, not camelCase or snake_case.
+    given: "$.paths[*]~"
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(/[a-z0-9]+(-[a-z0-9]+)*|/\\{[a-zA-Z][a-zA-Z0-9]*\\})*$"
+
+  schema-property-camel-case:
+    description: Schema property names must be camelCase, not snake_case.
+    given: "$.components.schemas[*].properties[*]~"
+    severity: error
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  # --- required descriptions -----------------------------------------------
+
+  operation-description-required:
+    description: Every operation must document what it does and why.
+    given: "$.paths[*][*]"
+    severity: error
+    then:
+      field: description
+      function: truthy
+
+  operation-summary-required:
+    description: Every operation must have a short summary.
+    given: "$.paths[*][*]"
+    severity: error
+    then:
+      field: summary
+      function: truthy
+
+  parameter-description-required:
+    description: Every parameter (path, query, header) must be documented.
+    given: "$.paths[*][*].parameters[*]"
+    severity: error
+    then:
+      field: description
+      function: truthy
+
+  request-body-description-required:
+    description: Request bodies must explain what they carry.
+    given: "$.paths[*][*].requestBody"
+    severity: error
+    then:
+      field: description
+      function: truthy
+
+  response-description-required:
+    description: Every response must explain what it means, not just its schema.
+    given: "$.paths[*][*].responses[*]"
+    severity: error
+    then:
+      field: description
+      function: truthy
+
+  # --- error-response schemas present ---------------------------------------
+
+  error-responses-have-schema:
+    description: >-
+      Every 4xx/5xx response must reference a JSON schema, so error shapes are
+      part of the contract instead of being left to prose in the description.
+    given: "$.paths[*][*].responses[?(@property.match(/^(4|5)/))]"
+    severity: error
+    then:
+      field: content.application/json.schema
+      function: truthy
+
+  # --- no unbounded arrays ---------------------------------------------------
+
+  no-unbounded-arrays:
+    description: >-
+      Every array schema must declare maxItems. An array with no upper bound
+      is an unbounded-response / pagination smell waiting to happen.
+    given: "$..[?(@.type=='array')]"
+    severity: error
+    then:
+      field: maxItems
+      function: truthy

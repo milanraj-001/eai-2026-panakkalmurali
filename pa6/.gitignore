@@ -1,0 +1,7 @@
+# Written by the running orchestrator. The graded artefact is the code that
+# produces these, not the files themselves.
+orchestrator/data/*
+!orchestrator/data/.gitkeep
+
+# Never commit these.
+node_modules/

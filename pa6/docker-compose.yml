@@ -1,0 +1,110 @@
+services:
+  payment:
+    build: ./mock-services/payment
+    container_name: pa6-payment
+    ports:
+      - "4001:4001"
+    environment:
+      PORT: 4001
+      PAYMENT_FAIL_MODE: ${PAYMENT_FAIL_MODE:-never}
+      PAYMENT_REFUND_FAIL_MODE: ${PAYMENT_REFUND_FAIL_MODE:-never}
+    volumes:
+      - ./mock-services/payment/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4001/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  inventory:
+    build: ./mock-services/inventory
+    container_name: pa6-inventory
+    ports:
+      - "4002:4002"
+    environment:
+      PORT: 4002
+      INVENTORY_FAIL_MODE: ${INVENTORY_FAIL_MODE:-never}
+      INVENTORY_RELEASE_FAIL_MODE: ${INVENTORY_RELEASE_FAIL_MODE:-never}
+    volumes:
+      - ./mock-services/inventory/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4002/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  shipping:
+    build: ./mock-services/shipping
+    container_name: pa6-shipping
+    ports:
+      - "4003:4003"
+    environment:
+      PORT: 4003
+      SHIPPING_FAIL_MODE: ${SHIPPING_FAIL_MODE:-never}
+      SHIPPING_DELAY_MS: ${SHIPPING_DELAY_MS:-0}
+    volumes:
+      - ./mock-services/shipping/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4003/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  notification:
+    build: ./mock-services/notification
+    container_name: pa6-notification
+    ports:
+      - "4004:4004"
+    environment:
+      PORT: 4004
+      NOTIFICATION_FAIL_MODE: ${NOTIFICATION_FAIL_MODE:-never}
+    volumes:
+      - ./mock-services/notification/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4004/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  orchestrator:
+    build: ./orchestrator
+    container_name: pa6-orchestrator
+    ports:
+      - "3000:3000"
+    environment:
+      ORCHESTRATOR_PORT: ${ORCHESTRATOR_PORT:-3000}
+      PAYMENT_URL: ${PAYMENT_URL:-http://payment:4001}
+      INVENTORY_URL: ${INVENTORY_URL:-http://inventory:4002}
+      SHIPPING_URL: ${SHIPPING_URL:-http://shipping:4003}
+      NOTIFICATION_URL: ${NOTIFICATION_URL:-http://notification:4004}
+      REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-2500}
+    volumes:
+      - ./orchestrator/data:/data
+      # The canonical order schema POST /checkout validates against. It lives
+      # at your repository root, copied there at PA4.
+      - ../canonical:/canonical:ro
+    depends_on:
+      payment:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      shipping:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # The contract linter. Not part of the running stack: `up` never starts it.
+  # Run it with `docker compose run --rm spectral`, from this folder, in any
+  # shell. See README.md §3.
+  spectral:
+    image: stoplight/spectral:6.16.3
+    profiles: ["tools"]
+    working_dir: /w
+    volumes:
+      - ./:/w:ro
+    command: ["lint", "openapi.yaml", "--ruleset", ".spectral.yaml"]

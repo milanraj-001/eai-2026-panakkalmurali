@@ -1,0 +1,10 @@
+{
+  "name": "eai-2026-pa6",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PA6 - contract-first checkout API and hand-rolled saga orchestration.",
+  "scripts": {
+    "test": "npm test --prefix tests/public",
+    "test:install": "npm install --prefix tests/public"
+  }
+}
