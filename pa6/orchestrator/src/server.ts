@@ -308,7 +308,7 @@ app.post("/checkout", (req: Request, res: Response) => {
     await finishCheckout(
       order.orderId,
       idempotencyKey,
-      422,
+      payment.timedOut ? 504 : 422,
       "failed",
       payment.code || "payment_failed",
       res
