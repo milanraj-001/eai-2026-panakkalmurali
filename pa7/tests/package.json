@@ -1,0 +1,21 @@
+{
+  "name": "eai-2026-pa7-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PA7 public black-box tests: HTTP against the api and the mock services, the filesystem for the audit mirror, and the docker CLI for the crash test.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

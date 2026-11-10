@@ -1,0 +1,25 @@
+{
+  "name": "eai-2026-pa7-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PA7 Temporal worker. worker.ts and types.ts are given; the checkout workflow and its activities are yours.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "tsx src/worker.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@temporalio/activity": "^1.24.0",
+    "@temporalio/common": "^1.24.0",
+    "@temporalio/worker": "^1.24.0",
+    "@temporalio/workflow": "^1.24.0",
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

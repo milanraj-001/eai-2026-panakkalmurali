@@ -1,0 +1,126 @@
+# PA7: seven containers.
+#
+#   temporal   the Temporal dev server: one process, gRPC on 7233, Web UI on 8233
+#   api        GIVEN — PA6's POST /checkout, in front of the workflow (port 3000)
+#   worker     YOURS — runs your checkout workflow and its activities
+#   payment, inventory, shipping, notification
+#              the PA6 mocks, built from YOUR ../pa6/mock-services, unchanged
+#
+# The mocks use the same ports as PA6: stop your PA6 stack before starting this.
+
+services:
+  temporal:
+    image: temporalio/temporal:1.9.1
+    container_name: pa7-temporal
+    # --db-filename keeps workflow histories in SQLite on the temporal-data
+    # volume, so they survive `docker compose down` / `up`. `down -v` wipes them.
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/home/temporal/temporal.db"]
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    volumes:
+      - temporal-data:/home/temporal
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  payment:
+    build: ../pa6/mock-services/payment
+    container_name: pa7-payment
+    ports:
+      - "4001:4001"
+    environment:
+      PORT: 4001
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4001/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  inventory:
+    build: ../pa6/mock-services/inventory
+    container_name: pa7-inventory
+    ports:
+      - "4002:4002"
+    environment:
+      PORT: 4002
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4002/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  shipping:
+    build: ../pa6/mock-services/shipping
+    container_name: pa7-shipping
+    ports:
+      - "4003:4003"
+    environment:
+      PORT: 4003
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4003/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  notification:
+    build: ../pa6/mock-services/notification
+    container_name: pa7-notification
+    ports:
+      - "4004:4004"
+    environment:
+      PORT: 4004
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4004/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    build: ./worker
+    container_name: pa7-worker
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      PAYMENT_URL: http://payment:4001
+      INVENTORY_URL: http://inventory:4002
+      SHIPPING_URL: http://shipping:4003
+      NOTIFICATION_URL: http://notification:4004
+    depends_on:
+      temporal:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      shipping:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+
+  api:
+    build: ./api
+    container_name: pa7-api
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      TEMPORAL_ADDRESS: temporal:7233
+    volumes:
+      # The audit mirror, readable on your host as in PA6.
+      - ./api/data:/data
+      # The canonical order schema POST /checkout validates against. It lives
+      # at your repository root, copied there at PA4.
+      - ../canonical:/canonical:ro
+    depends_on:
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  temporal-data:
