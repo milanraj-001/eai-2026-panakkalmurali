@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/capstone/grading/schema/ops-metrics.schema.json",
+  "title": "Operations metrics",
+  "description": "GET /ops/metrics on the observer (README §4.9, R-4.9.1–10). `alerts` holds each of the seven keys exactly once. `firing` must equal the key's predicate applied to `value`; the tests check that. The two lag thresholds are yours, a whole number from 1 to 20; every other threshold is null.",
+  "type": "object",
+  "required": ["generatedAt", "queues", "dlqDepth", "invalidDepth", "stuckSagas", "alerts"],
+  "definitions": {
+    "count": { "type": "integer", "minimum": 0 },
+    "queue": {
+      "type": "object",
+      "required": ["ready", "unacked", "consumers"],
+      "properties": {
+        "ready": { "$ref": "#/definitions/count" },
+        "unacked": { "$ref": "#/definitions/count" },
+        "consumers": { "$ref": "#/definitions/count" }
+      },
+      "additionalProperties": true
+    },
+    "alertKey": {
+      "type": "string",
+      "enum": [
+        "dlq_not_empty",
+        "invalid_not_empty",
+        "saga_consumer_missing",
+        "notifier_consumer_missing",
+        "saga_consumer_lag",
+        "notifier_consumer_lag",
+        "stuck_sagas"
+      ]
+    }
+  },
+  "properties": {
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "queues": {
+      "type": "object",
+      "required": ["saga.queue", "notifications.queue", "orders.dlq", "orders.invalid", "trace.store"],
+      "properties": {
+        "saga.queue": { "$ref": "#/definitions/queue" },
+        "notifications.queue": { "$ref": "#/definitions/queue" },
+        "orders.dlq": { "$ref": "#/definitions/queue" },
+        "orders.invalid": { "$ref": "#/definitions/queue" },
+        "trace.store": { "$ref": "#/definitions/queue" }
+      },
+      "additionalProperties": { "$ref": "#/definitions/queue" }
+    },
+    "dlqDepth": { "$ref": "#/definitions/count" },
+    "invalidDepth": { "$ref": "#/definitions/count" },
+    "stuckSagas": { "$ref": "#/definitions/count" },
+    "alerts": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "required": ["key", "firing", "value", "threshold"],
+        "properties": {
+          "key": { "$ref": "#/definitions/alertKey" },
+          "firing": { "type": "boolean" },
+          "value": { "$ref": "#/definitions/count" },
+          "threshold": { "type": ["integer", "null"] }
+        },
+        "if": { "properties": { "key": { "enum": ["saga_consumer_lag", "notifier_consumer_lag"] } } },
+        "then": { "properties": { "threshold": { "type": "integer", "minimum": 1, "maximum": 20 } } },
+        "else": { "properties": { "threshold": { "type": "null" } } },
+        "additionalProperties": true
+      },
+      "allOf": [
+        { "contains": { "properties": { "key": { "const": "dlq_not_empty" } } } },
+        { "contains": { "properties": { "key": { "const": "invalid_not_empty" } } } },
+        { "contains": { "properties": { "key": { "const": "saga_consumer_missing" } } } },
+        { "contains": { "properties": { "key": { "const": "notifier_consumer_missing" } } } },
+        { "contains": { "properties": { "key": { "const": "saga_consumer_lag" } } } },
+        { "contains": { "properties": { "key": { "const": "notifier_consumer_lag" } } } },
+        { "contains": { "properties": { "key": { "const": "stuck_sagas" } } } }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

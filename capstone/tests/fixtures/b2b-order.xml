@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="windows-1257"?>
+<PurchaseOrder orderId="B2B-2026-100" orderType="b2b" orderDate="2026-09-01T10:30:00Z">
+  <BuyerParty>
+    <Name>Anna Bērziņa</Name>
+    <ContactEmail>anna.berzina@example.com</ContactEmail>
+    <ShipToAddress country="LV">
+      <Street>Brīvības iela 100</Street>
+      <City>Rīga</City>
+      <PostalCode>LV-1001</PostalCode>
+    </ShipToAddress>
+    <PaymentDetails method="wire">
+      <IBAN>GB29NWBK60161331926819</IBAN>
+      <BIC>NWBKGB2L</BIC>
+    </PaymentDetails>
+  </BuyerParty>
+  <LineItems currency="EUR">
+    <LineItem sku="SKU-PROD-001" quantity="2">
+      <Description>Wireless Mouse</Description>
+      <UnitListPrice>24,99</UnitListPrice>
+    </LineItem>
+    <LineItem sku="SKU-PROD-002" quantity="1">
+      <Description>USB-C Hub</Description>
+      <UnitListPrice>49,99</UnitListPrice>
+    </LineItem>
+  </LineItems>
+  <ContractDate>01.09.2026</ContractDate>
+  <Notes>Standard partner order - no special handling required.</Notes>
+  <Status>NEW</Status>
+</PurchaseOrder>

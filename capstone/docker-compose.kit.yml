@@ -1,0 +1,120 @@
+# Capstone kit services. REPLACED AT GRADING with the official copy: a change
+# here does not count, and redefining one of these services in your own
+# docker-compose.yml is rejected by the configuration policy (README §9).
+#
+# Your docker-compose.yml pulls this file in with `include:` (Docker Compose
+# 2.20 or later) and defines your own services.
+#
+#   rabbitmq      5680 AMQP, 15680 management UI   user eai / eai-capstone
+#   pricing       4110    PA4's mock-pricing, extended
+#   payment       4801    \
+#   inventory     4802     | PA6's mocks, extended. One image;
+#   shipping      4803     | MOCK_SERVICE picks the service
+#   notification  4804    /
+#   temporal      7240 gRPC, 8240 UI   profile `temporal` only
+#
+# Inside the Compose network your services reach them as rabbitmq:5672,
+# pricing:4100, payment:4001, inventory:4002, shipping:4003,
+# notification:4004 and temporal:7233 (README §3.4).
+#
+# <SERVICE>_MOCK_CONFIG: an optional /admin/config body applied when that mock
+# starts, for testing by hand. Unset, the mocks start with no failures.
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: cap-rabbitmq
+    # RabbitMQ keeps its data under its node name, which comes from the
+    # hostname. A fixed hostname keeps rabbitmq-data valid across re-creation.
+    hostname: cap-rabbitmq
+    ports:
+      - "5680:5672"
+      - "15680:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  pricing:
+    build: ./mocks/pricing
+    container_name: cap-pricing
+    ports:
+      - "4110:4100"
+    environment:
+      PORT: "4100"
+      PRICING_API_KEY: pa4-pricing-key-2026
+      MOCK_CONFIG: ${PRICING_MOCK_CONFIG:-}
+    mem_limit: 128m
+
+  payment:
+    build: ./mocks/providers
+    container_name: cap-payment
+    ports:
+      - "4801:4001"
+    environment:
+      MOCK_SERVICE: payment
+      PORT: "4001"
+      MOCK_CONFIG: ${PAYMENT_MOCK_CONFIG:-}
+    mem_limit: 128m
+
+  inventory:
+    build: ./mocks/providers
+    container_name: cap-inventory
+    ports:
+      - "4802:4002"
+    environment:
+      MOCK_SERVICE: inventory
+      PORT: "4002"
+      MOCK_CONFIG: ${INVENTORY_MOCK_CONFIG:-}
+    mem_limit: 128m
+
+  shipping:
+    build: ./mocks/providers
+    container_name: cap-shipping
+    ports:
+      - "4803:4003"
+    environment:
+      MOCK_SERVICE: shipping
+      PORT: "4003"
+      MOCK_CONFIG: ${SHIPPING_MOCK_CONFIG:-}
+    mem_limit: 128m
+
+  notification:
+    build: ./mocks/providers
+    container_name: cap-notification
+    ports:
+      - "4804:4004"
+    environment:
+      MOCK_SERVICE: notification
+      PORT: "4004"
+      MOCK_CONFIG: ${NOTIFICATION_MOCK_CONFIG:-}
+    mem_limit: 128m
+
+  temporal:
+    image: temporalio/temporal:1.9.1
+    container_name: cap-temporal
+    profiles: [temporal]
+    # --db-filename keeps workflow histories in SQLite on temporal-data.
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/home/temporal/temporal.db"]
+    ports:
+      - "7240:7233"
+      - "8240:8233"
+    volumes:
+      - temporal-data:/home/temporal
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+volumes:
+  rabbitmq-data: {}
+  temporal-data: {}

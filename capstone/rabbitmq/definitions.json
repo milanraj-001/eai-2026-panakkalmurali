@@ -1,0 +1,254 @@
+{
+  "rabbit_version": "3.13.7",
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "users": [
+    {
+      "name": "eai",
+      "password_hash": "3KQIxrD4lDYDgTfVf+QhaMMmfvCiYVV86MlM9suz7as7cfNq",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": [
+        "administrator"
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "user": "eai",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "orders.exchange",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.retry.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.return.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.dlq.exchange",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.invalid.exchange",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.outcome",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "trace.events",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "saga.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "orders.retry.exchange",
+        "x-dead-letter-routing-key": "saga.queue"
+      }
+    },
+    {
+      "name": "saga.retry.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "orders.return.exchange",
+        "x-dead-letter-routing-key": "saga.queue"
+      }
+    },
+    {
+      "name": "notifications.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "orders.retry.exchange",
+        "x-dead-letter-routing-key": "notifications.queue"
+      }
+    },
+    {
+      "name": "notifications.retry.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000,
+        "x-dead-letter-exchange": "orders.return.exchange",
+        "x-dead-letter-routing-key": "notifications.queue"
+      }
+    },
+    {
+      "name": "orders.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "orders.invalid",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "trace.store",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "intake.outcomes.queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "orders.exchange",
+      "vhost": "/",
+      "destination": "saga.queue",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "orders.return.exchange",
+      "vhost": "/",
+      "destination": "saga.queue",
+      "destination_type": "queue",
+      "routing_key": "saga.queue",
+      "arguments": {}
+    },
+    {
+      "source": "orders.retry.exchange",
+      "vhost": "/",
+      "destination": "saga.retry.queue",
+      "destination_type": "queue",
+      "routing_key": "saga.queue",
+      "arguments": {}
+    },
+    {
+      "source": "orders.outcome",
+      "vhost": "/",
+      "destination": "notifications.queue",
+      "destination_type": "queue",
+      "routing_key": "order.failed",
+      "arguments": {}
+    },
+    {
+      "source": "orders.outcome",
+      "vhost": "/",
+      "destination": "notifications.queue",
+      "destination_type": "queue",
+      "routing_key": "order.compensated",
+      "arguments": {}
+    },
+    {
+      "source": "orders.return.exchange",
+      "vhost": "/",
+      "destination": "notifications.queue",
+      "destination_type": "queue",
+      "routing_key": "notifications.queue",
+      "arguments": {}
+    },
+    {
+      "source": "orders.retry.exchange",
+      "vhost": "/",
+      "destination": "notifications.retry.queue",
+      "destination_type": "queue",
+      "routing_key": "notifications.queue",
+      "arguments": {}
+    },
+    {
+      "source": "orders.dlq.exchange",
+      "vhost": "/",
+      "destination": "orders.dlq",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "orders.invalid.exchange",
+      "vhost": "/",
+      "destination": "orders.invalid",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "trace.events",
+      "vhost": "/",
+      "destination": "trace.store",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "orders.outcome",
+      "vhost": "/",
+      "destination": "intake.outcomes.queue",
+      "destination_type": "queue",
+      "routing_key": "order.#",
+      "arguments": {}
+    }
+  ]
+}

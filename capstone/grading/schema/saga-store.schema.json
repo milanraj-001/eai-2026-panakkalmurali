@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/capstone/grading/schema/saga-store.schema.json",
+  "title": "Saga store",
+  "description": "/data/saga-store.json on the orchestrator (README §3.5). `sagas` maps correlationId → the saga; `businessKeys` maps businessKey → the correlationId that owns it (the dedupe index, R-4.2.3). `owner` is your crash-detection device (§4.7). `outcome` is the event a redelivery republishes (R-4.2.4): required once the saga has an outcome. Extra fields are allowed everywhere.",
+  "type": "object",
+  "required": ["sagas", "businessKeys"],
+  "definitions": {
+    "at": { "type": "string", "format": "date-time" }
+  },
+  "properties": {
+    "sagas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["businessKey", "state", "steps", "compensations", "owner", "updatedAt"],
+        "properties": {
+          "businessKey": { "type": "string", "pattern": "^(web|mobile|b2b):.+$" },
+          "state": {
+            "type": "string",
+            "enum": [
+              "processing",
+              "parked",
+              "completed",
+              "failed",
+              "compensated",
+              "compensation_failed",
+              "needs_attention",
+              "duplicate"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["step", "status", "at"],
+              "properties": {
+                "step": { "type": "string", "enum": ["payment", "inventory", "shipping", "notification"] },
+                "status": { "type": "string", "minLength": 1 },
+                "at": { "$ref": "#/definitions/at" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "compensations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["step", "status", "at"],
+              "properties": {
+                "step": { "type": "string", "enum": ["payment_refund", "inventory_release"] },
+                "status": { "type": "string", "minLength": 1 },
+                "at": { "$ref": "#/definitions/at" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "operatorCompensation": { "type": "object" },
+          "outcome": {
+            "type": "object",
+            "required": ["routingKey", "envelope"],
+            "properties": {
+              "routingKey": {
+                "type": "string",
+                "enum": [
+                  "order.processing",
+                  "order.parked",
+                  "order.completed",
+                  "order.failed",
+                  "order.compensated",
+                  "order.compensation_failed",
+                  "order.needs_attention",
+                  "order.duplicate"
+                ]
+              },
+              "envelope": { "$ref": "outcome-event.schema.json" }
+            },
+            "additionalProperties": true
+          },
+          "owner": { "type": "string", "minLength": 1 },
+          "updatedAt": { "$ref": "#/definitions/at" }
+        },
+        "if": {
+          "properties": {
+            "state": { "enum": ["completed", "failed", "compensated", "compensation_failed", "needs_attention", "duplicate"] }
+          }
+        },
+        "then": { "required": ["outcome"] },
+        "additionalProperties": true
+      }
+    },
+    "businessKeys": {
+      "type": "object",
+      "propertyNames": { "pattern": "^(web|mobile|b2b):.+$" },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": true
+}

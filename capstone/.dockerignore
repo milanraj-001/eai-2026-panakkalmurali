@@ -1,0 +1,13 @@
+# Your services build with capstone/ as their context (docker-compose.yml).
+# Send only what the images need. The mocks have their own contexts.
+**/node_modules
+**/dist
+**/.env
+**/__pycache__
+**/.venv
+mocks
+tests
+docs
+grading
+rabbitmq
+*.md

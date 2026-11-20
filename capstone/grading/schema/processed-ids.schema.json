@@ -1,0 +1,9 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/capstone/grading/schema/processed-ids.schema.json",
+  "title": "Notifier processed ids",
+  "description": "/data/processed-ids.json on the notifier (README §3.5, R-4.5.3): the correlationIds already notified, each once.",
+  "type": "array",
+  "uniqueItems": true,
+  "items": { "type": "string", "minLength": 1 }
+}

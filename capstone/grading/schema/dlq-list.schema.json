@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/capstone/grading/schema/dlq-list.schema.json",
+  "title": "DLQ list",
+  "description": "GET /dlq on intake (README §4.6, R-4.6.1). `count` equals the number of entries. `attempts` is how many times the message failed before it was dead-lettered. Extra fields are allowed.",
+  "type": "object",
+  "required": ["count", "entries"],
+  "properties": {
+    "count": { "type": "integer", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["messageId", "correlationId", "originQueue", "attempts", "lastError", "deadLetteredAt"],
+        "properties": {
+          "messageId": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "originQueue": { "type": "string", "minLength": 1 },
+          "attempts": { "type": "integer", "minimum": 1 },
+          "lastError": { "type": "string", "minLength": 1 },
+          "deadLetteredAt": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

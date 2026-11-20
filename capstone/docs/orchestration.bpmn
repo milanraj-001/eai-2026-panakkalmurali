@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The saga as a BPMN 2.0 process (README §6, R-6.2). An empty diagram: open
+  this file in https://demo.bpmn.io or in Camunda Modeler, draw your saga,
+  save it here, and export the picture next to it as orchestration.svg
+  (or orchestration.png).
+
+  It needs: a message start event (order.accepted); the b2b exclusive gateway;
+  one task per step; error boundary events on the steps that can fail; timer
+  boundary events for the timeouts; the compensation (compensation boundary
+  events and tasks marked "for compensation"); and one end event per outcome.
+
+  The stage 6 tests check that this is BPMN 2.0 XML with an error boundary
+  event, compensation and an exclusive gateway, and that the picture exists.
+  The notation is discussed at the defence.
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_capstone" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_checkout" name="Checkout saga" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_checkout">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/capstone/grading/schema/outcome-event.schema.json",
+  "title": "Outcome event",
+  "description": "The body of every lifecycle and outcome event on orders.outcome (README §4.5, R-4.5.1–2), and the `outcome.envelope` kept in the saga store (§3.5). The routing key is `order.<state>`. `code` is present for failed, compensated and compensation_failed; `duplicateOf` for duplicate. Extra fields are allowed.",
+  "type": "object",
+  "required": ["correlationId", "businessKey", "orderId", "source", "orderType", "recipient", "state", "occurredAt"],
+  "properties": {
+    "correlationId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "businessKey": { "type": "string", "pattern": "^(web|mobile|b2b):.+$" },
+    "orderId": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "enum": ["web", "mobile", "b2b"] },
+    "orderType": { "type": "string", "enum": ["standard", "express", "b2b"] },
+    "recipient": {
+      "type": "string",
+      "format": "email",
+      "description": "customer.email of the canonical order (R-4.2.10)."
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "parked",
+        "completed",
+        "failed",
+        "compensated",
+        "compensation_failed",
+        "needs_attention",
+        "duplicate"
+      ]
+    },
+    "code": { "type": "string", "minLength": 1 },
+    "duplicateOf": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "occurredAt": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "state": { "enum": ["failed", "compensated", "compensation_failed"] } } },
+      "then": { "required": ["code"] }
+    },
+    {
+      "if": { "properties": { "state": { "const": "duplicate" } } },
+      "then": { "required": ["duplicateOf"] }
+    }
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,16 @@
+{
+  "name": "eai-2026-capstone-mock-pricing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Capstone kit: the pricing mock. PA4's mock-pricing plus delay, outage and 401 switches. Replaced at grading.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

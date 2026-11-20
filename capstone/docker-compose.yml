@@ -1,0 +1,162 @@
+# The capstone: the kit (docker-compose.kit.yml) and your services. YOURS TO
+# EDIT, within the rules in README §9. It is not replaced at grading.
+#
+# Fixed by the contract (README §3.1, §3.4, §3.6), so keep them as they are:
+# the service and container names, the host ports, the environment variables
+# listed here and their values, the mem_limits, and one named volume per
+# service mounted at /data. Everything else is yours: how each image is built,
+# the port inside the container, the healthcheck command, variables you add.
+#
+#   intake        8800   POST /orders, GET /orders/:cid, GET /dlq, POST /dlq/replay
+#   observer      8801   GET /trace/:cid, GET /ops/metrics
+#   orchestrator  8802   GET /sagas/stuck, POST /sagas/:cid/compensate
+#   notifier      8803   GET /health (every service has one)
+#   worker        —      profile `temporal`: the advanced component only
+#
+# Until your services have a Dockerfile, start the kit on its own:
+#   docker compose up -d rabbitmq pricing payment inventory shipping notification
+#
+# Hand-rolled mode:  docker compose up -d --build --wait
+# Temporal mode:     SAGA_ENGINE=temporal docker compose --profile temporal up -d --build --wait
+# Reset everything:  docker compose down -v
+#
+# Each service is built with capstone/ as its context, so code in shared/ is
+# reachable from every Dockerfile. .dockerignore keeps node_modules, mocks,
+# tests and docs out of that context.
+include:
+  - docker-compose.kit.yml # needs Docker Compose 2.20 or later. Never remove this line (R-9.1)
+
+# A healthcheck that needs no curl or wget: node:20-bookworm-slim has neither.
+# It assumes your service listens on $PORT inside the container. Change it if
+# yours does not, or if the image is not Node.
+x-health: &health
+  test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+  interval: 3s
+  timeout: 3s
+  retries: 20
+  start_period: 20s
+
+x-after-broker: &after-broker
+  rabbitmq:
+    condition: service_healthy
+
+services:
+  intake:
+    build:
+      context: .
+      dockerfile: intake/Dockerfile
+    container_name: cap-intake
+    ports:
+      - "8800:8800"
+    environment:
+      PORT: "8800" # yours: the port inside the container
+      RABBITMQ_URL: amqp://eai:eai-capstone@rabbitmq:5672
+      PRICING_URL: http://pricing:4100
+      PRICING_API_KEY: pa4-pricing-key-2026
+      REQUEST_TIMEOUT_MS: "2500"
+      ORDER_ITEMS_MAX: "50"
+      DATA_DIR: /data
+    volumes:
+      - intake-data:/data
+      # The canonical schema, read-only at /canonical/order.schema.json. The one
+      # bind mount outside capstone/ that §9 allows (R-9.3).
+      - ../canonical:/canonical:ro
+    mem_limit: 256m
+    healthcheck: *health
+    depends_on: *after-broker
+
+  observer:
+    build:
+      context: .
+      dockerfile: observer/Dockerfile
+    container_name: cap-observer
+    ports:
+      - "8801:8801"
+    environment:
+      PORT: "8801"
+      RABBITMQ_URL: amqp://eai:eai-capstone@rabbitmq:5672
+      DATA_DIR: /data
+    volumes:
+      - observer-data:/data
+    mem_limit: 256m
+    healthcheck: *health
+    depends_on: *after-broker
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    container_name: cap-orchestrator
+    ports:
+      - "8802:8802"
+    environment:
+      PORT: "8802"
+      RABBITMQ_URL: amqp://eai:eai-capstone@rabbitmq:5672
+      PAYMENT_URL: http://payment:4001
+      INVENTORY_URL: http://inventory:4002
+      SHIPPING_URL: http://shipping:4003
+      NOTIFICATION_URL: http://notification:4004
+      REQUEST_TIMEOUT_MS: "2500"
+      MAX_RETRIES: "3"
+      SAGA_CONCURRENCY: "5"
+      SAGA_STUCK_AFTER_MS: "10000"
+      SAGA_ENGINE: ${SAGA_ENGINE:-handrolled}
+      TEMPORAL_ADDRESS: temporal:7233
+      DATA_DIR: /data
+    volumes:
+      - orchestrator-data:/data
+      - ../canonical:/canonical:ro
+    mem_limit: 256m
+    healthcheck: *health
+    depends_on: *after-broker
+
+  notifier:
+    build:
+      context: .
+      dockerfile: notifier/Dockerfile
+    container_name: cap-notifier
+    ports:
+      - "8803:8803"
+    environment:
+      PORT: "8803"
+      RABBITMQ_URL: amqp://eai:eai-capstone@rabbitmq:5672
+      NOTIFICATION_URL: http://notification:4004
+      REQUEST_TIMEOUT_MS: "2500"
+      MAX_RETRIES: "3"
+      DATA_DIR: /data
+    volumes:
+      - notifier-data:/data
+    mem_limit: 256m
+    healthcheck: *health
+    depends_on: *after-broker
+
+  # The advanced component (README §4.11). Started only with --profile temporal.
+  # Its image must be based on node:20-bookworm-slim (R-3.6.3).
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: cap-worker
+    profiles: [temporal]
+    environment:
+      RABBITMQ_URL: amqp://eai:eai-capstone@rabbitmq:5672
+      PAYMENT_URL: http://payment:4001
+      INVENTORY_URL: http://inventory:4002
+      SHIPPING_URL: http://shipping:4003
+      NOTIFICATION_URL: http://notification:4004
+      REQUEST_TIMEOUT_MS: "2500"
+      TEMPORAL_ADDRESS: temporal:7233
+      DATA_DIR: /data
+    mem_limit: 768m
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+# No `name:` on any volume, and no external network (R-9.4).
+volumes:
+  intake-data: {}
+  observer-data: {}
+  orchestrator-data: {}
+  notifier-data: {}

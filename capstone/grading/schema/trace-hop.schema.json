@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/mleitass/eai-2026/capstone/grading/schema/trace-hop.schema.json",
+  "title": "Trace hop",
+  "description": "One hop record, as published to trace.events and stored one per line in /data/trace-store.jsonl (README §4.8, R-4.8.5–6). durationMs = finishedAt − startedAt in whole milliseconds; the tests check that. Extra fields are allowed.",
+  "type": "object",
+  "required": [
+    "hopId",
+    "correlationId",
+    "causationId",
+    "service",
+    "operation",
+    "status",
+    "attempt",
+    "startedAt",
+    "finishedAt",
+    "durationMs"
+  ],
+  "properties": {
+    "hopId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "description": "A new UUID v4 for every hop."
+    },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "causationId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "The hopId of the hop that caused this one. null for intake.receive only (R-4.8.8)."
+    },
+    "service": { "type": "string", "enum": ["intake", "orchestrator", "notifier", "observer", "worker"] },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "intake.receive",
+        "intake.translate",
+        "intake.enrich",
+        "intake.publish",
+        "dlq.replay",
+        "saga.consume",
+        "saga.dedupe",
+        "payment",
+        "inventory",
+        "shipping",
+        "notification",
+        "inventory_release",
+        "payment_refund",
+        "saga.retry",
+        "saga.dead_letter",
+        "saga.outcome",
+        "saga.stuck",
+        "saga.operator_compensate",
+        "workflow.start",
+        "notify.consume",
+        "notify.send",
+        "notify.duplicate",
+        "notify.retry",
+        "notify.dead_letter",
+        "invalid.quarantine"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed", "timeout", "retried", "dead_lettered", "quarantined", "skipped", "duplicate"]
+    },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "messageId": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "detail": { "type": "object" }
+  },
+  "additionalProperties": true
+}

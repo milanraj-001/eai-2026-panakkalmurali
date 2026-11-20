@@ -1,0 +1,25 @@
+{
+  "name": "eai-2026-capstone-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The capstone's public tests, in stages: HTTP against your services and the kit's mocks, AMQP against the broker, the docker CLI for stop and start, and your docs/ folder for stage 6.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node stage.mjs",
+    "test:stage": "node stage.mjs"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.8",
+    "@types/node": "^22.10.2",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "amqplib": "^0.10.9",
+    "fast-xml-parser": "^4.5.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "yaml": "^2.6.1"
+  }
+}
