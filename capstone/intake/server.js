@@ -88,6 +88,8 @@ const allowedTransitions = {
   duplicate: []
 };
 
+const unknownSeen = new Map();
+
 async function handleOutcome(message) {
   let event;
 
@@ -123,7 +125,17 @@ async function handleOutcome(message) {
   const order = orders[event.correlationId];
 
   if (!order) {
-    outcomeChannel.nack(message, false, true);
+    const key = message.properties.messageId || (event.correlationId + ":" + event.state);
+    const seen = (unknownSeen.get(key) || 0) + 1;
+    unknownSeen.set(key, seen);
+    if (seen >= 5) {
+      unknownSeen.delete(key);
+      outcomeChannel.ack(message);
+    } else {
+      setTimeout(() => {
+        try { outcomeChannel.nack(message, false, true); } catch {}
+      }, 300);
+    }
     return;
   }
 
