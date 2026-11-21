@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 620" width="1120" height="620" font-family="Arial, Helvetica, sans-serif" font-size="12">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
+<rect width="1120" height="620" fill="#ffffff"/>
+<text x="20" y="24" font-size="16" font-weight="bold">Checkout saga (orchestration.bpmn)</text>
+<polyline points="98,260 165,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="215,260 280,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="247.5" y="254" text-anchor="middle" font-size="11">not b2b</text>
+<polyline points="190,235 190,40 470,40 470,235" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="330" y="34" text-anchor="middle" font-size="11">b2b: no payment</text>
+<polyline points="380,260 445,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="495,260 560,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="660,260 720,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="820,260 880,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="980,260 1052,260" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="290,318 290,462" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="370,318 370,462" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="600,318 600,390 780,390 780,462" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="750,318 750,390 780,390 780,462" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="810,318 810,390 780,390 780,462" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="930,318 930,390 780,390 780,462" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="798,480 875,480" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<polyline points="925,480 992,480" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="958.5" y="474" text-anchor="middle" font-size="11">all succeeded</text>
+<polyline points="900,505 900,552" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arr)"/>
+<text x="906" y="528.5" font-size="11">a call failed</text>
+<polyline points="330,202 330,170" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr)"/>
+<polyline points="610,202 610,170" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr)"/>
+<circle cx="80" cy="260" r="18" fill="#e8f5e9" stroke="#333" stroke-width="1.5"/>
+<rect x="72" y="255" width="16" height="10" fill="none" stroke="#333"/><polyline points="72,255 80,260 88,255" fill="none" stroke="#333"/>
+<text x="80" y="294" text-anchor="middle" font-size="11">order.accepted received</text>
+<polygon points="190,235 215,260 190,285 165,260" fill="#fff8e1" stroke="#333" stroke-width="1.5"/>
+<path d="M182,252 L198,268 M198,252 L182,268" stroke="#333" stroke-width="2"/>
+<text x="190" y="228" text-anchor="middle" font-size="11">orderType?</text>
+<rect x="280" y="220" width="100" height="80" rx="8" fill="#eef4ff" stroke="#333" stroke-width="1.5"/>
+<text x="330" y="257" text-anchor="middle">Authorize</text>
+<text x="330" y="271" text-anchor="middle">payment</text>
+<polygon points="470,235 495,260 470,285 445,260" fill="#fff8e1" stroke="#333" stroke-width="1.5"/>
+<path d="M462,252 L478,268 M478,252 L462,268" stroke="#333" stroke-width="2"/>
+<rect x="560" y="220" width="100" height="80" rx="8" fill="#eef4ff" stroke="#333" stroke-width="1.5"/>
+<text x="610" y="257" text-anchor="middle">Reserve</text>
+<text x="610" y="271" text-anchor="middle">inventory</text>
+<rect x="720" y="220" width="100" height="80" rx="8" fill="#eef4ff" stroke="#333" stroke-width="1.5"/>
+<text x="770" y="257" text-anchor="middle">Create</text>
+<text x="770" y="271" text-anchor="middle">shipment</text>
+<rect x="880" y="220" width="100" height="80" rx="8" fill="#eef4ff" stroke="#333" stroke-width="1.5"/>
+<text x="930" y="257" text-anchor="middle">Send</text>
+<text x="930" y="271" text-anchor="middle">confirmation</text>
+<circle cx="1070" cy="260" r="18" fill="#ffebee" stroke="#333" stroke-width="4"/>
+<text x="1070" y="294" text-anchor="middle" font-size="11">completed</text>
+<rect x="280" y="90" width="100" height="80" rx="8" fill="#eef4ff" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4"/>
+<text x="330" y="134" text-anchor="middle">Refund payment</text>
+<text x="330" y="164" text-anchor="middle" font-size="10">compensation</text>
+<rect x="560" y="90" width="100" height="80" rx="8" fill="#eef4ff" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4"/>
+<text x="610" y="127" text-anchor="middle">Release</text>
+<text x="610" y="141" text-anchor="middle">inventory</text>
+<text x="610" y="164" text-anchor="middle" font-size="10">compensation</text>
+<circle cx="330" cy="220" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="330" cy="220" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="330" y="224" text-anchor="middle" font-size="11" font-weight="bold">&lt;&lt;</text>
+<circle cx="610" cy="220" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="610" cy="220" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="610" y="224" text-anchor="middle" font-size="11" font-weight="bold">&lt;&lt;</text>
+<circle cx="290" cy="300" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="290" cy="300" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<polyline points="284,306 288,294 292,304 296,294" fill="none" stroke="#333" stroke-width="1.5"/>
+<text x="284" y="340" text-anchor="end" font-size="10">4xx</text>
+<circle cx="370" cy="300" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="370" cy="300" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="370" cy="300" r="8" fill="none" stroke="#333"/><path d="M370,294 L370,300 L375,303" fill="none" stroke="#333"/>
+<text x="376" y="340" text-anchor="start" font-size="10">5xx / timeout</text>
+<circle cx="600" cy="300" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="600" cy="300" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<polyline points="594,306 598,294 602,304 606,294" fill="none" stroke="#333" stroke-width="1.5"/>
+<text x="594" y="340" text-anchor="end" font-size="10">4xx / 5xx</text>
+<circle cx="750" cy="300" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="750" cy="300" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<polyline points="744,306 748,294 752,304 756,294" fill="none" stroke="#333" stroke-width="1.5"/>
+<text x="744" y="340" text-anchor="end" font-size="10">4xx / 5xx</text>
+<circle cx="810" cy="300" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="810" cy="300" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="810" cy="300" r="8" fill="none" stroke="#333"/><path d="M810,294 L810,300 L815,303" fill="none" stroke="#333"/>
+<text x="816" y="340" text-anchor="start" font-size="10">timeout</text>
+<circle cx="930" cy="300" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="930" cy="300" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<polyline points="924,306 928,294 932,304 936,294" fill="none" stroke="#333" stroke-width="1.5"/>
+<text x="936" y="340" text-anchor="start" font-size="10">4xx / 5xx</text>
+<circle cx="290" cy="480" r="18" fill="#ffebee" stroke="#333" stroke-width="4"/>
+<text x="290" y="514" text-anchor="middle" font-size="11">failed</text>
+<circle cx="370" cy="480" r="18" fill="#ffebee" stroke="#333" stroke-width="4"/>
+<text x="370" y="514" text-anchor="middle" font-size="11">parked (DLQ)</text>
+<circle cx="780" cy="480" r="18" fill="#fff" stroke="#333" stroke-width="1.5"/>
+<circle cx="780" cy="480" r="14" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="780" y="484" text-anchor="middle" font-size="11" font-weight="bold">&lt;&lt;</text>
+<text x="780" y="514" text-anchor="middle" font-size="11">compensate</text>
+<polygon points="900,455 925,480 900,505 875,480" fill="#fff8e1" stroke="#333" stroke-width="1.5"/>
+<path d="M892,472 L908,488 M908,472 L892,488" stroke="#333" stroke-width="2"/>
+<text x="900" y="448" text-anchor="middle" font-size="11">all compensations ok?</text>
+<circle cx="1010" cy="480" r="18" fill="#ffebee" stroke="#333" stroke-width="4"/>
+<text x="1010" y="514" text-anchor="middle" font-size="11">compensated</text>
+<circle cx="900" cy="570" r="18" fill="#ffebee" stroke="#333" stroke-width="4"/>
+<text x="900" y="604" text-anchor="middle" font-size="11">compensation_failed</text>
+</svg>

@@ -1,37 +1,19 @@
 # Patterns
 
-<!--
-The integration patterns in your system, and where they are (README §6, R-6.3).
-
-What the stage 6 tests check: a table with the columns Pattern | Problem |
-Where | Why, at least 8 rows, a Normalizer row among them, and every Where
-link resolving to a file and a line that exist in your repository.
-
-What is judged (GRADING.md §5, M4): every row must be true at its link. A row
-that claims something your code does not do is a false row. One false row
-costs M4's point; more than one also costs up to 3 more points of the manual
-block. Eight true rows beat twelve rows with two wrong ones. At the defence I
-pick a row and you show me the code behind it.
-
-Where: link the line where the pattern happens, not the file's first line.
-Either form works:
-
-    [normalize.ts:42](../intake/src/normalize.ts#L42)    a link, resolved from docs/
-    intake/src/normalize.ts:42                           a bare path, from capstone/
-
-A pattern in two places can have two links. After you change the code,
-check that the lines still point where you mean.
-
-The course's patterns include: Normalizer, Message Translator, Content
-Enricher, Content Filter, Canonical Data Model, Content-Based Router,
-Idempotent Receiver, Guaranteed Delivery, Dead Letter Channel, Invalid
-Message Channel, Retry with a delay queue, Correlation Identifier, Wire Tap,
-Message Store, Process Manager / Saga, Compensating Transaction, Semantic
-Lock, Competing Consumers. List only the ones your code really has.
-
-Problem: what goes wrong without the pattern, in this system. Why: why this
-pattern and not another. One sentence each is enough.
--->
+Every Where entry is a path and line in `capstone/`. Re-check the lines after any edit to these files.
 
 | Pattern | Problem | Where | Why |
 |---|---|---|---|
+| Normalizer | Web JSON, mobile JSON and b2b XML (windows-1257) all arrive at one endpoint, and the saga must see only one shape. | intake/server.js:390 | `extractInput` detects the format from the Content-Type and body, and maps all three to one internal shape, so nothing downstream knows the source format. |
+| Content Enricher | Orders carry no prices, but payment needs an amount in whole cents. | intake/server.js:558 | `enrichOrder` calls pricing for each item and adds unit price, currency and tax rate. An unknown product rejects the whole order with 422. |
+| Canonical Data Model | Three source formats would otherwise need pairwise mappings to every consumer. | intake/server.js:596 | The enriched order is validated against `canonical/order.schema.json` before it is published, so the orchestrator only deals with one schema. |
+| Idempotent Receiver | A client retry of `POST /orders` would create a second order. | intake/server.js:660, orchestrator/server.js:338 | Intake keys on `Idempotency-Key` plus the body hash. The saga keys on the business key, so the same order under a new key becomes `duplicate`. |
+| Guaranteed Delivery | An accepted order must not be lost if the broker or intake restarts. | intake/server.js:747 | The `order.accepted` event is published persistent on a confirm channel, and intake answers 202 only after the broker confirms. |
+| Correlation Identifier | One order crosses four services, and its events and calls must be matched. | intake/server.js:751 | Intake generates the `correlationId` and puts it in the headers. Every later message and mock call carries it. |
+| Process Manager / Saga | Payment, inventory, shipping and notification are separate systems with no shared transaction. | orchestrator/server.js:253 | `processOrder` runs the steps in order and records each completed step in the saga store, so a failure can be compensated. |
+| Compensating Transaction | A failed later step leaves a charge or a reservation behind. | orchestrator/server.js:246 | `compensationFor` maps a completed inventory or payment step to its release or refund call, run in reverse order with provider idempotency keys. |
+| Semantic Lock | An order being processed must be visible as in progress, not look untouched. | orchestrator/server.js:382 | The saga publishes `order.processing` before its first step, and intake's `GET /orders/:cid` shows that state. |
+| Retry with a delay queue | A temporary provider failure should be retried later, not at once and not forever. | orchestrator/server.js:726 | The consumer nacks without requeue into the queue's dead-letter arguments, so the message waits in the retry queue and returns after its TTL. The notifier does the same at notifier/server.js:190. |
+| Dead Letter Channel | A message that keeps failing would loop forever and block the queue. | notifier/server.js:195 | After `MAX_RETRIES` attempts the notifier publishes the message to `orders.dlq.exchange` with `originQueue` and `lastError`, and acks it. |
+| Invalid Message Channel | A message that is not JSON can never succeed, so retrying it is pointless. | orchestrator/server.js:701 | The orchestrator publishes it to `orders.invalid.exchange` with its original bytes and headers, then acks it. Nothing replays that queue. |
+| Wire Tap | The trace must be recorded without slowing or failing the business flow. | orchestrator/server.js:133 | `emitHop` publishes a hop record to `trace.events` without awaiting a confirm, and catches its own errors, so tracing never fails an order. |

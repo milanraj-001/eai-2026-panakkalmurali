@@ -1,38 +1,32 @@
 # Agent readiness
 
-<!--
-If an AI agent were given tools to operate this system, what would they be,
-and what could go wrong (README §6, R-6.6)? This document is M3, 2 of the
-manual points (GRADING.md §5). Keep the four ## headings as they are; the
-stage 6 tests check that each has text of yours under it.
-
-Write about this system, not about agents in general: generic
-agent-security text scores 0.
--->
-
 ## Tools
+Read tools (no side effects):
+- `get_trace`: returns every hop of one order. Calls `GET http://observer:8801/trace/{correlationId}`. Input: `{"type":"object","required":["correlationId"],"properties":{"correlationId":{"type":"string","format":"uuid"}}}`.
+- `get_ops_metrics`: returns queue depths, `dlqDepth`, `invalidDepth`, `stuckSagas` and the seven alerts. Calls `GET http://observer:8801/ops/metrics`. Input: none.
+- `list_dlq`: lists dead-lettered messages (messageId, correlationId, originQueue, attempts, lastError). Calls `GET http://intake:8800/dlq`. Input: none. It is non-destructive.
 
-<!--
-3–5 tools an agent could use on this system. Keep the read tools apart from
-the write tools. For each: its name, what it does, the endpoint it calls, and
-its input schema (a small JSON Schema, or a TypeScript type).
--->
+Write tools (change the system):
+- `replay_dlq`: republishes dead-lettered messages for the retry path. Calls `POST http://intake:8800/dlq/replay`. Input: `{"type":"object","required":["correlationId"],"properties":{"correlationId":{"type":"string","format":"uuid"}}}`. The agent must always give a correlationId; the empty body that replays everything is not offered.
+- `compensate_saga`: refunds and releases the completed steps of a stuck order. Calls `POST http://orchestrator:8802/sagas/{correlationId}/compensate`. Input: `{"type":"object","required":["correlationId"],"properties":{"correlationId":{"type":"string","format":"uuid"}}}`.
 
 ## Injection paths
-
-<!--
-Where could text that an attacker controls reach the agent? Name the fields,
-in this system's messages, that carry free text from outside, and the tools
-that would hand that text to the agent.
--->
+Text that an outside party controls can reach the agent through these fields:
+- The order body that a customer or partner submits: free-text fields such as names, addresses and any notes or descriptions in the canonical order (the exact fields are in `canonical/order.schema.json`). They travel inside the order.accepted event and may appear in a trace or in a DLQ entry the agent reads.
+- `lastError` on a DLQ entry and `detail` on a trace hop. These are built from provider responses (the `code` and message of a payment, inventory, shipping or notification failure), so a compromised or faulty provider can put text there. `list_dlq` and `get_trace` would hand that text to the agent.
+- The `recipient` address and the failure `code` inside outcome events, which the notifier copies into the notice it sends.
+An agent must treat all of these as data to report, never as instructions.
 
 ## Controls
-
-<!--
-What stops the agent from doing damage: which tools need a human to
-confirm, what is logged and where, what limits apply.
--->
+- `compensate_saga` and `replay_dlq` need a human to confirm in the agent's interface, with the correlationId and the order's current state shown first. The read tools do not.
+- Both write endpoints are safe to repeat: a second compensate call returns the same answer and adds no refund or release (I checked this), and a replay only republishes the entries of one correlationId with fresh attempts, so a cause that is not fixed returns to the DLQ after `MAX_RETRIES` and is not lost.
+- Everything is logged in the trace: a replay writes a `dlq.replay` hop and an operator compensation writes a `saga.operator_compensate` hop, each with its causation chain, so the actions of an agent can be audited afterwards.
+- Compensating is only accepted for orders in `needs_attention` or `compensation_failed`; any other state is refused with 409, so the agent cannot refund a healthy order.
+- The agent's credentials should be limited to these five endpoints. That limit belongs to the agent's deployment, not to this code.
 
 ## Not exposed
-
-<!-- What you would never give an agent a tool for, and why. -->
+- `POST /orders`: an agent must not create orders; only customers and partners do.
+- The RabbitMQ management API and queue purging: it can destroy messages and bypass every control above.
+- The mocks' `/admin` endpoints and the stores in `/data`: they change or read ground truth directly.
+- Replay of `orders.invalid`: nothing replays it by design, because those messages are malformed and keep their original bytes for inspection.
+- Docker and container control: an agent that can stop services can also hide what happened.
