@@ -603,6 +603,27 @@ async function enrichOrder(input, correlationId) {
   return { order };
 }
 
+function emitHop(h) {
+  try {
+    if (!channel) return;
+    const finishedAt = h.finishedAt || new Date();
+    channel.publish("trace.events", "", Buffer.from(JSON.stringify({
+      hopId: h.hopId,
+      correlationId: h.correlationId,
+      causationId: h.causationId ?? null,
+      service: "intake",
+      operation: h.operation,
+      status: h.status || "success",
+      attempt: 1,
+      startedAt: h.startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(),
+      durationMs: Math.max(0, finishedAt.getTime() - h.startedAt.getTime())
+    })), { contentType: "application/json", messageId: randomUUID() });
+  } catch (error) {
+    console.error("Trace hop failed:", error.message);
+  }
+}
+
 function publishConfirmed(exchange, body, options) {
   return new Promise((resolve, reject) => {
     if (!channel) {
@@ -621,6 +642,7 @@ function publishConfirmed(exchange, body, options) {
 }
 
 async function processOrder(req, res) {
+  const receiveStart = new Date();
   const key = req.headers["idempotency-key"];
 
   if (
@@ -681,11 +703,22 @@ async function processOrder(req, res) {
   };
 
   try {
+    const translateStart = new Date();
     const input = extractInput(req, bytes);
     const correlationId = randomUUID();
     const businessKey = `${input.source}:${input.orderId}`;
 
+    const receiveId = randomUUID();
+    const translateId = randomUUID();
+    const enrichId = randomUUID();
+    const pending = [];
+    const mk = (operation, startedAt, hopId, causation) => ({
+      hopId, correlationId, causationId: causation, operation, startedAt, finishedAt: new Date()
+    });
+    pending.push(mk("intake.translate", translateStart, translateId, receiveId));
+    const enrichStart = new Date();
     const result = await enrichOrder(input, correlationId);
+    pending.push(mk("intake.enrich", enrichStart, enrichId, translateId));
 
     if (result.unknownIds) {
       return await complete(422, {
@@ -703,6 +736,7 @@ async function processOrder(req, res) {
     }
 
     const order = result.order;
+    const publishStart = new Date();
     const causationId = randomUUID();
 
     try {
@@ -728,6 +762,10 @@ async function processOrder(req, res) {
         message: "The order broker could not confirm publication"
       }, { "Retry-After": "1" });
     }
+
+    pending.push(mk("intake.publish", publishStart, causationId, enrichId));
+    emitHop(mk("intake.receive", receiveStart, receiveId, null));
+    for (const h of pending) emitHop(h);
 
     const now = new Date().toISOString();
 
