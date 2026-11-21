@@ -760,6 +760,152 @@ async function processOrder(req, res) {
   }
 }
 
+// ---- DLQ operations (README §4.6) ----
+const DLQ_QUEUE = "orders.dlq";
+let dlqChain = Promise.resolve();
+
+function withDlqLock(fn) {
+  const run = dlqChain.then(fn, fn);
+  dlqChain = run.catch(() => {});
+  return run;
+}
+
+function dlqStripHistory(headers = {}) {
+  const out = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.startsWith("x-")) continue;
+    if (["originQueue", "lastError", "attempts", "deadLetteredAt", "causationId"].includes(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function dlqHop(operation, correlationId, causationId, hopId, startedAt, status, detail) {
+  try {
+    if (!correlationId || !channel) return;
+    const finished = new Date();
+    channel.publish("trace.events", "", Buffer.from(JSON.stringify({
+      hopId,
+      correlationId,
+      causationId: causationId ?? null,
+      service: "intake",
+      operation,
+      status,
+      attempt: 1,
+      startedAt: startedAt.toISOString(),
+      finishedAt: finished.toISOString(),
+      durationMs: finished.getTime() - startedAt.getTime(),
+      ...(detail ? { detail } : {})
+    })), { contentType: "application/json", messageId: randomUUID() });
+  } catch (error) {
+    console.error("Trace hop failed:", error.message);
+  }
+}
+
+async function dlqTakeAll(ch) {
+  const messages = [];
+  for (;;) {
+    const message = await ch.get(DLQ_QUEUE, { noAck: false });
+    if (!message) break;
+    messages.push(message);
+  }
+  return messages;
+}
+
+function dlqEntry(message) {
+  const headers = message.properties.headers || {};
+  const deaths = Array.isArray(headers["x-death"]) ? headers["x-death"] : [];
+  const attempts = headers.attempts !== undefined && Number.isFinite(Number(headers.attempts))
+    ? Number(headers.attempts)
+    : deaths.reduce((sum, d) => sum + Number(d.count || 0), 0);
+  return {
+    messageId: message.properties.messageId ?? null,
+    correlationId: headers.correlationId ?? null,
+    originQueue: headers.originQueue ?? null,
+    attempts,
+    lastError: headers.lastError ?? "unknown",
+    deadLetteredAt: headers.deadLetteredAt
+      ?? (message.properties.timestamp ? new Date(message.properties.timestamp * 1000).toISOString() : new Date().toISOString())
+  };
+}
+
+// Non-destructive: take every message, describe it, then give them all back.
+function dlqList() {
+  if (!brokerConnection) return Promise.resolve({ status: 503, body: { code: "broker_unavailable" } });
+  return withDlqLock(async () => {
+    const ch = await brokerConnection.createChannel();
+    try {
+      const messages = await dlqTakeAll(ch);
+      const entries = messages.map(dlqEntry);
+      ch.nackAll(true);
+      return { status: 200, body: { count: entries.length, entries } };
+    } finally {
+      await ch.close().catch(() => {});
+    }
+  });
+}
+
+function dlqReplay(bytes) {
+  let filter;
+  try {
+    const text = bytes.toString("utf8").trim();
+    filter = text ? JSON.parse(text) : {};
+    if (!filter || typeof filter !== "object" || Array.isArray(filter)) throw new Error("body must be an object");
+    if (filter.correlationId !== undefined && typeof filter.correlationId !== "string") throw new Error("correlationId must be a string");
+  } catch (error) {
+    return Promise.resolve({ status: 400, body: { code: "validation_error", message: error.message } });
+  }
+  if (!brokerConnection) return Promise.resolve({ status: 503, body: { code: "broker_unavailable" } });
+
+  return withDlqLock(async () => {
+    const ch = await brokerConnection.createConfirmChannel();
+    try {
+      const messages = await dlqTakeAll(ch);
+      let replayed = 0;
+
+      for (const message of messages) {
+        const headers = message.properties.headers || {};
+        const wanted = !filter.correlationId || headers.correlationId === filter.correlationId;
+
+        if (!wanted || !headers.originQueue) {
+          ch.nack(message, false, true);
+          continue;
+        }
+
+        const hopId = randomUUID();
+        const startedAt = new Date();
+
+        try {
+          await new Promise((resolve, reject) => {
+            ch.publish(
+              "orders.return.exchange",
+              headers.originQueue,
+              message.content,
+              {
+                persistent: true,
+                contentType: message.properties.contentType,
+                messageId: randomUUID(),
+                headers: { ...dlqStripHistory(headers), causationId: hopId }
+              },
+              error => (error ? reject(error) : resolve())
+            );
+          });
+          ch.ack(message);
+          replayed += 1;
+          dlqHop("dlq.replay", headers.correlationId, headers.causationId, hopId, startedAt, "success", { originQueue: headers.originQueue });
+        } catch (error) {
+          console.error("DLQ replay failed:", error.message);
+          ch.nack(message, false, true);
+        }
+      }
+
+      return { status: 200, body: { replayed, remaining: messages.length - replayed } };
+    } finally {
+      await ch.close().catch(() => {});
+    }
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
@@ -773,6 +919,16 @@ const server = http.createServer(async (req, res) => {
           consumers: {}
         }
       });
+    }
+
+    if (req.method === "GET" && url.pathname === "/dlq") {
+      const r = await dlqList();
+      return sendJson(res, r.status, r.body);
+    }
+
+    if (req.method === "POST" && url.pathname === "/dlq/replay") {
+      const r = await dlqReplay(await readBody(req));
+      return sendJson(res, r.status, r.body);
     }
 
     if (req.method === "POST" && url.pathname === "/orders") {
