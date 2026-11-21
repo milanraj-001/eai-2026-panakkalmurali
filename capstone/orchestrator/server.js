@@ -15,6 +15,7 @@ const SHIPPING_URL = process.env.SHIPPING_URL || "http://shipping:4003";
 const NOTIFICATION_URL = process.env.NOTIFICATION_URL || "http://notification:4004";
 const TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 2500);
 const CONCURRENCY = Number(process.env.SAGA_CONCURRENCY || 5);
+const MAX_RETRIES = Number(process.env.MAX_RETRIES || 3);
 
 const canonicalSchema = JSON.parse(
   await readFile("/canonical/order.schema.json", "utf8")
@@ -114,21 +115,111 @@ async function recordStep(saga, step) {
   await saveStore();
 }
 
-async function processOrder(message) {
+class InvalidMessageError extends Error {}
+
+class RetryableError extends Error {
+  constructor(cause, code) {
+    super(cause.message);
+    this.code = code;
+  }
+}
+
+function retryCount(headers) {
+  const deaths = headers?.["x-death"];
+  if (!Array.isArray(deaths)) return 0;
+  return deaths
+    .filter(entry => entry.queue === "saga.queue")
+    .reduce((sum, entry) => sum + Number(entry.count || 0), 0);
+}
+
+function stripHistory(headers = {}) {
+  const out = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.startsWith("x-")) continue;
+    if (["originQueue", "lastError", "attempts", "deadLetteredAt", "causationId"].includes(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function publishRaw(exchange, routingKey, content, options) {
+  return new Promise((resolve, reject) => {
+    if (!channel) {
+      reject(new Error("channel unavailable"));
+      return;
+    }
+    channel.publish(exchange, routingKey, content, options, error =>
+      error ? reject(error) : resolve()
+    );
+  });
+}
+
+async function deadLetter(message, lastError, attempt) {
+  const headers = message.properties.headers || {};
+  await publishRaw("orders.dlq.exchange", "", message.content, {
+    persistent: true,
+    contentType: message.properties.contentType,
+    messageId: randomUUID(),
+    headers: {
+      ...stripHistory(headers),
+      correlationId: headers.correlationId,
+      causationId: randomUUID(),
+      originQueue: "saga.queue",
+      lastError,
+      attempts: attempt,
+      deadLetteredAt: new Date().toISOString()
+    }
+  });
+}
+
+async function parkSaga(message, code, attempt) {
+  const headers = message.properties.headers || {};
+  const correlationId = headers.correlationId;
+
+  await deadLetter(message, code, attempt);
+
   const order = JSON.parse(message.content.toString("utf8"));
+  const saga = store.sagas[correlationId];
+
+  if (saga) {
+    saga.state = "parked";
+    saga.updatedAt = new Date().toISOString();
+    await saveStore();
+  }
+
+  await publishOutcome({
+    correlationId,
+    businessKey: saga?.businessKey ?? headers.businessKey ?? `${order.source}:${order.orderId}`,
+    orderId: order.orderId,
+    source: order.source,
+    orderType: order.orderType,
+    recipient: order.customer.email,
+    state: "parked",
+    occurredAt: new Date().toISOString()
+  }, correlationId);
+}
+
+async function processOrder(message) {
+  let order;
+  try {
+    order = JSON.parse(message.content.toString("utf8"));
+  } catch (error) {
+    throw new InvalidMessageError(`not JSON: ${error.message}`);
+  }
 
   if (!validateCanonicalOrder(order)) {
     const details = ajv.errorsText(validateCanonicalOrder.errors);
-    throw new Error(`Invalid canonical order: ${details}`);
+    throw new InvalidMessageError(`invalid canonical order: ${details}`);
   }
 
   const headers = message.properties.headers || {};
   const correlationId = headers.correlationId;
-  const businessKey = headers.businessKey;
 
-  if (!correlationId || !businessKey) {
-    throw new Error("Order is missing correlationId or businessKey headers");
+  if (!correlationId) {
+    throw new InvalidMessageError("no correlationId header");
   }
+
+  const businessKey = headers.businessKey || `${order.source}:${order.orderId}`;
 
   const existing = store.sagas[correlationId];
 
@@ -179,10 +270,27 @@ async function processOrder(message) {
     updatedAt: new Date().toISOString()
   };
 
+  const resumingFromPark = existing?.state === "parked";
+
   if (!existing) {
     store.sagas[correlationId] = saga;
     store.businessKeys[businessKey] = correlationId;
+  }
+
+  if (!existing || resumingFromPark) {
+    saga.state = "processing";
+    saga.updatedAt = new Date().toISOString();
     await saveStore();
+    await publishOutcome({
+      correlationId,
+      businessKey,
+      orderId: order.orderId,
+      source: order.source,
+      orderType: order.orderType,
+      recipient: order.customer.email,
+      state: "processing",
+      occurredAt: new Date().toISOString()
+    }, correlationId);
   }
 
   const commonHeaders = {
@@ -282,7 +390,7 @@ async function processOrder(message) {
 
       // Temporary failure of the first step is handled by the retry queue.
       if (index === 0 && !permanent) {
-        throw error;
+        throw new RetryableError(error, code);
       }
 
       // Compensate completed steps in reverse order.
@@ -353,16 +461,50 @@ async function connectBroker() {
 
       await channel.consume("saga.queue", async message => {
         if (!message) return;
+        const headers = message.properties.headers || {};
 
         try {
           await processOrder(message);
           channel.ack(message);
         } catch (error) {
-          console.error("Saga processing failed:", error.message);
-          channel.nack(message, false, false);
+          try {
+            if (error instanceof InvalidMessageError) {
+              console.error("Invalid message quarantined:", error.message);
+              await publishRaw("orders.invalid.exchange", "", message.content, {
+                persistent: true,
+                contentType: message.properties.contentType,
+                messageId: randomUUID(),
+                headers
+              });
+              channel.ack(message);
+              return;
+            }
+
+            const attempt = retryCount(headers) + 1;
+            const lastError = error instanceof RetryableError
+              ? error.code
+              : (error.message || "error").slice(0, 120);
+            console.error(`Saga processing failed (attempt ${attempt}):`, error.message);
+
+            if (attempt < MAX_RETRIES) {
+              channel.nack(message, false, false);
+              return;
+            }
+
+            if (error instanceof RetryableError) {
+              await parkSaga(message, lastError, attempt);
+            } else {
+              await deadLetter(message, lastError, attempt);
+            }
+            channel.ack(message);
+          } catch (handlingError) {
+            console.error("Saga failure handling failed:", handlingError.message);
+            try { channel.nack(message, false, true); } catch { /* channel closed */ }
+          }
         }
       });
-      consumers["saga.queue"] = 1;
+      
+consumers["saga.queue"] = 1;
 
       connection.on("close", () => {
         consumers["saga.queue"] = 0;
