@@ -29,6 +29,7 @@ let store = { sagas: {}, businessKeys: {} };
 let connection;
 let channel;
 let brokerStatus = "down";
+const consumers = {};
 
 async function saveStore() {
   await mkdir(DATA_DIR, { recursive: true });
@@ -120,6 +121,7 @@ async function processOrder(message) {
     const details = ajv.errorsText(validateCanonicalOrder.errors);
     throw new Error(`Invalid canonical order: ${details}`);
   }
+
   const headers = message.properties.headers || {};
   const correlationId = headers.correlationId;
   const businessKey = headers.businessKey;
@@ -131,14 +133,11 @@ async function processOrder(message) {
   const existing = store.sagas[correlationId];
 
   if (existing?.outcome) {
-    await publishOutcome(
-      { ...existing.outcome.envelope },
-      correlationId
-    );
+    await publishOutcome({ ...existing.outcome.envelope }, correlationId);
     return;
   }
 
-  if (existing) {
+  if (existing && existing.steps.length > 0) {
     throw new Error("Saga already exists and requires recovery");
   }
 
@@ -157,11 +156,21 @@ async function processOrder(message) {
       occurredAt: new Date().toISOString()
     };
 
+    store.sagas[correlationId] = {
+      businessKey,
+      state: "duplicate",
+      steps: [],
+      compensations: [],
+      owner: "handrolled",
+      outcome: { routingKey: "order.duplicate", envelope },
+      updatedAt: new Date().toISOString()
+    };
+    await saveStore();
     await publishOutcome(envelope, correlationId);
     return;
   }
 
-  const saga = {
+  const saga = existing || {
     businessKey,
     state: "processing",
     steps: [],
@@ -170,87 +179,168 @@ async function processOrder(message) {
     updatedAt: new Date().toISOString()
   };
 
-  store.sagas[correlationId] = saga;
-  store.businessKeys[businessKey] = correlationId;
-  await saveStore();
+  if (!existing) {
+    store.sagas[correlationId] = saga;
+    store.businessKeys[businessKey] = correlationId;
+    await saveStore();
+  }
 
   const commonHeaders = {
     "X-Correlation-Id": correlationId
   };
 
-  if (order.orderType !== "b2b") {
-    await providerCall(
-      `${PAYMENT_URL}/payment/authorize`,
-      {
+  const steps = [
+    ...(order.orderType === "b2b" ? [] : [{
+      name: "payment",
+      url: `${PAYMENT_URL}/payment/authorize`,
+      body: {
         orderId: order.orderId,
         amount: amountInCents(order.items)
       },
-      {
-        ...commonHeaders,
-        "X-Causation-Id": randomUUID(),
+      headers: {
         "Idempotency-Key": `authorize:${businessKey}`
       }
-    );
-    await recordStep(saga, "payment");
-  }
-
-  await providerCall(
-    `${INVENTORY_URL}/inventory/reserve`,
-    { orderId: order.orderId, items: order.items },
+    }]),
     {
-      ...commonHeaders,
-      "X-Causation-Id": randomUUID(),
-      "Idempotency-Key": `reserve:${businessKey}`
-    }
-  );
-  await recordStep(saga, "inventory");
-
-  await providerCall(
-    `${SHIPPING_URL}/shipping/create`,
-    { orderId: order.orderId },
-    {
-      ...commonHeaders,
-      "X-Causation-Id": randomUUID()
-    }
-  );
-  await recordStep(saga, "shipping");
-
-  await providerCall(
-    `${NOTIFICATION_URL}/notification/send`,
-    {
-      orderId: order.orderId,
-      recipient: order.customer.email,
-      kind: "order_confirmed"
+      name: "inventory",
+      url: `${INVENTORY_URL}/inventory/reserve`,
+      body: { orderId: order.orderId, items: order.items },
+      headers: {
+        "Idempotency-Key": `reserve:${businessKey}`
+      }
     },
     {
-      ...commonHeaders,
-      "X-Causation-Id": randomUUID()
+      name: "shipping",
+      url: `${SHIPPING_URL}/shipping/create`,
+      body: { orderId: order.orderId },
+      headers: {}
+    },
+    {
+      name: "notification",
+      url: `${NOTIFICATION_URL}/notification/send`,
+      body: {
+        orderId: order.orderId,
+        recipient: order.customer.email,
+        kind: "order_confirmed"
+      },
+      headers: {}
     }
-  );
-  await recordStep(saga, "notification");
+  ];
 
-  const envelope = {
-    correlationId,
-    businessKey,
-    orderId: order.orderId,
-    source: order.source,
-    orderType: order.orderType,
-    recipient: order.customer.email,
-    state: "completed",
-    occurredAt: new Date().toISOString()
-  };
+  async function finish(state, code) {
+    const envelope = {
+      correlationId,
+      businessKey,
+      orderId: order.orderId,
+      source: order.source,
+      orderType: order.orderType,
+      recipient: order.customer.email,
+      state,
+      ...(code ? { code } : {}),
+      occurredAt: new Date().toISOString()
+    };
 
-  saga.state = "completed";
-  saga.outcome = {
-    routingKey: "order.completed",
-    envelope
-  };
-  saga.updatedAt = new Date().toISOString();
-  await saveStore();
+    saga.state = state;
+    saga.outcome = {
+      routingKey: `order.${state}`,
+      envelope
+    };
+    saga.updatedAt = new Date().toISOString();
+    await saveStore();
+    await publishOutcome(envelope, correlationId);
+  }
 
-  await publishOutcome(envelope, correlationId);
+  function errorCode(error) {
+    if (error.name === "TimeoutError" || error.name === "AbortError") {
+      return "timeout";
+    }
+    if (error instanceof TypeError || error.code === "ECONNREFUSED") {
+      return "unreachable";
+    }
+    return error.code || "provider_error";
+  }
+
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index];
+
+    try {
+      await providerCall(step.url, step.body, {
+        ...commonHeaders,
+        "X-Causation-Id": randomUUID(),
+        ...step.headers
+      });
+      await recordStep(saga, step.name);
+    } catch (error) {
+      const code = errorCode(error);
+      const permanent = error.status >= 400 && error.status < 500;
+
+      // A permanent failure of the first step needs no compensation.
+      if (index === 0 && permanent) {
+        await finish("failed", code);
+        return;
+      }
+
+      // Temporary failure of the first step is handled by the retry queue.
+      if (index === 0 && !permanent) {
+        throw error;
+      }
+
+      // Compensate completed steps in reverse order.
+      const compensationSteps = [...saga.steps].reverse()
+        .map(item => item.step)
+        .filter(name => name === "inventory" || name === "payment")
+        .map(name => name === "inventory"
+          ? {
+              name: "inventory_release",
+              url: `${INVENTORY_URL}/inventory/release`,
+              key: `release:${businessKey}`
+            }
+          : {
+              name: "payment_refund",
+              url: `${PAYMENT_URL}/payment/refund`,
+              key: `refund:${businessKey}`
+            });
+
+      for (const compensation of compensationSteps) {
+        try {
+          await providerCall(
+            compensation.url,
+            { orderId: order.orderId },
+            {
+              ...commonHeaders,
+              "X-Causation-Id": randomUUID(),
+              "Idempotency-Key": compensation.key
+            }
+          );
+
+          saga.compensations.push({
+            step: compensation.name,
+            status: "completed",
+            at: new Date().toISOString()
+          });
+          saga.updatedAt = new Date().toISOString();
+          await saveStore();
+        } catch (compensationError) {
+          const compensationCode = errorCode(compensationError);
+          saga.compensations.push({
+            step: compensation.name,
+            status: "failed",
+            code: compensationCode,
+            at: new Date().toISOString()
+          });
+          await saveStore();
+          await finish("compensation_failed", compensationCode);
+          return;
+        }
+      }
+
+      await finish("compensated", code);
+      return;
+    }
+  }
+
+  await finish("completed");
 }
-
 async function connectBroker() {
   let delay = 500;
 
@@ -272,8 +362,10 @@ async function connectBroker() {
           channel.nack(message, false, false);
         }
       });
+      consumers["saga.queue"] = 1;
 
       connection.on("close", () => {
+        consumers["saga.queue"] = 0;
         channel = undefined;
         connection = undefined;
         brokerStatus = "down";
@@ -306,7 +398,10 @@ const server = http.createServer((req, res) => {
     });
     res.end(JSON.stringify({
       status: healthy ? "ok" : "unhealthy",
-      checks: { broker: brokerStatus }
+      checks: {
+        broker: brokerStatus,
+        consumers
+      }
     }));
     return;
   }

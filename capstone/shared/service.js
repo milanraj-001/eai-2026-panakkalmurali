@@ -26,8 +26,11 @@ async function connectToRabbit() {
 
       connection.on("close", () => {
         brokerStatus = "down";
-        console.error(`[${serviceName}] RabbitMQ connection closed`);
-        process.exit(1);
+        if (queueName) consumers[queueName] = 0;
+        console.error(`[${serviceName}] RabbitMQ connection closed; reconnecting...`);
+        connectToRabbit().catch((err) => {
+          console.error(`[${serviceName}] RabbitMQ reconnect failed:`, err);
+        });
       });
 
       if (queueName) {
